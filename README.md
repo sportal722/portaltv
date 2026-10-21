@@ -1,41 +1,125 @@
 # NEXORA
 
-Prototipo de una plataforma de streaming en español con identidad propia: fondo oscuro, violeta eléctrico, cian y coral. Lema: **Tu mundo, en directo.**
+Plataforma de streaming en español con backend local en Next.js 15, React 19, TypeScript, Prisma 6.16.2 y SQLite. Identidad oscura, violeta, cian y coral. **Tu mundo, en directo.**
 
-## Ejecutar
+## Preparación local
 
-Requiere Node.js 20.9 o posterior y npm.
+Recomendado Node.js 22 o 24 y npm. Desde la raíz del repositorio:
 
 ```bash
 npm ci
+npm run db:setup
 npm run dev
 ```
 
-Abrir http://localhost:3000. Para producción local: `npm run build` y `npm start`.
+Abrir **http://localhost:3000**. `db:setup` crea `.env` desde `.env.example` si no existe, genera Prisma Client, aplica las migraciones versionadas y carga ocho canales de ejemplo. Es idempotente: no borra cuentas, mensajes ni canales existentes. La base de datos queda en `prisma/dev.db` y está excluida de Git.
 
-## Implementado
-
-- Next.js 15, React 19 y TypeScript; interfaz adaptable a móvil y escritorio.
-- Logo SVG, favicon, metadatos y estilos de marca.
-- Descubrimiento, búsqueda por canal/juego/título, filtros y categorías.
-- Canales favoritos persistidos en localStorage, carrusel y notificaciones.
-- Perfil local, borrador de creador y chat de demostración.
-- Ventanas con cierre por Escape, navegación con teclado y reducción de movimiento.
-
-## Alcance de la demo
-
-Los canales, cifras, clips y mensajes iniciales son ejemplos. La vista de canal muestra una imagen y un aviso; **no reproduce una emisión real**. Clips abre esa misma vista previa, sin vídeo. El perfil local no es registro ni autenticación. No hay backend, base de datos, RTMP, pagos ni servicios de terceros conectados. Los favoritos y borradores se guardan solo en este navegador; el chat se conserva durante la visita.
-
-`continuar.md` conserva el contexto y los requisitos del proyecto anterior. Ese código no está presente en este repositorio; las tareas de backend y producción descritas allí quedan pendientes.
-
-## Verificar
+Para ejecutar el build de producción local:
 
 ```bash
 npm run build
+npm start
+```
+
+Detener `npm run dev` antes de compilar; dev y build comparten `.next`.
+
+### Configuración
+
+`.env.example` contiene únicamente configuración local sin credenciales:
+
+- `DATABASE_URL="file:./dev.db"`: ruta relativa al esquema de Prisma.
+- `APP_URL="http://localhost:3000"`: origen público exacto (incluido el puerto) usado para validar las peticiones de escritura. Si cambias el puerto, dominio o protocolo, actualiza esta variable y reinicia.
+
+Fuera de localhost, `APP_URL` debe usar HTTPS. Las cookies llevan `Secure` cuando `APP_URL` usa HTTPS. Solo se admite HTTP para desarrollo en localhost/127.0.0.1/::1. No expongas la base de datos ni el archivo `.env` como recursos públicos. No hacen falta claves de proveedores externos para probar estas APIs.
+
+## Usar la aplicación
+
+1. Abre **Mi perfil** o visita `/register`.
+2. Crea una cuenta de espectador o de creador; contraseña de 12 a 128 caracteres.
+3. Sigue canales con el corazón y consulta **Siguiendo**. Los favoritos pertenecen a la cuenta y persisten en SQLite.
+4. Abre un canal para consultar y enviar mensajes. El chat carga el historial y consulta nuevos mensajes cada tres segundos.
+5. Con una cuenta de creador, abre **Mi canal** para crear o editar tu canal (título, categoría, juego/tema y portada). El canal queda **sin emisión** hasta integrar vídeo.
+6. Cierra sesión desde Mi perfil. También existe `/login`.
+
+Los antiguos perfiles, favoritos y borradores de localStorage ya no se utilizan ni se importan como cuentas reales. No se guardan contraseñas ni tokens en localStorage.
+
+### Administración local
+
+Registra primero una cuenta normal y, desde una terminal con acceso a la base de datos, ejecuta:
+
+```bash
+npm run admin:promote -- tu-email-registrado
+```
+
+Después abre `/admin` para silenciar, suspender o reactivar usuarios. No hay contraseña de administrador predeterminada ni una API pública para asignar este rol. La API comprueba el rol en cada petición, impide modificar el estado del propio administrador y revoca todas las sesiones de una cuenta suspendida. Un usuario silenciado puede consultar el chat, pero no enviar mensajes. El propietario de un canal y los administradores pueden eliminar mensajes mediante la API; cada usuario también puede eliminar sus propios mensajes.
+
+## APIs locales
+
+Todas las respuestas usan `{ "data": ... }` o `{ "error": { "code": "...", "message": "..." } }`. Las peticiones de escritura requieren `Content-Type: application/json` si llevan cuerpo y una cabecera `Origin` que coincida con `APP_URL`, también desde curl u otros clientes locales. Las rutas privadas requieren la cookie de sesión emitida al registrar o iniciar sesión.
+
+| Método y ruta                          | Uso / permisos                                                                     |
+| -------------------------------------- | ---------------------------------------------------------------------------------- |
+| `GET /api/health`                      | Estado de conexión a SQLite y estado de vídeo                                      |
+| `POST /api/auth/register`              | `{email, username, password, role: "viewer" o "creator"}`                          |
+| `POST /api/auth/login`                 | `{email, password}`; crea una sesión                                               |
+| `POST /api/auth/logout`                | Revoca la sesión y elimina la cookie                                               |
+| `GET /api/auth/me`                     | Usuario actual o `null`; nunca devuelve contraseñas ni tokens                      |
+| `GET /api/streams`                     | Catálogo; admite `q`, `category` y `mine=true` (requiere sesión)                   |
+| `POST /api/streams`                    | Creador/admin; `{title, category, game?, image?}`; máximo cinco canales por cuenta |
+| `GET /api/streams/[slug]`              | Canal público                                                                      |
+| `PATCH /api/streams/[slug]`            | Propietario/admin; actualizar título, categoría, juego o portada                   |
+| `GET /api/follows`                     | IDs de canales seguidos por la sesión actual                                       |
+| `POST /api/follows`                    | `{streamId}`; seguir de forma idempotente                                          |
+| `DELETE /api/follows`                  | `{streamId}`; dejar de seguir                                                      |
+| `GET /api/streams/[slug]/chat`         | Últimos 100 mensajes en orden cronológico                                          |
+| `POST /api/streams/[slug]/chat`        | Sesión activa; `{text}` de 1 a 300 caracteres                                      |
+| `DELETE /api/streams/[slug]/chat/[id]` | Autor del mensaje, propietario del canal o admin                                   |
+| `GET /api/admin/users`                 | Solo admin; hasta 100 usuarios, sin hashes ni emails                               |
+| `PATCH /api/admin/users`               | Solo admin; `{id, status: "active", "muted" o "banned"}`                           |
+| `GET /api/clips`                       | Lista vacía hasta integrar el servicio de vídeo                                    |
+
+Categorías admitidas: Gaming, Esports, Charlando, Música e IRL. Las portadas se eligen entre las imágenes locales del catálogo. La API asigna el propietario y el slug; rechaza cambios de estado de emisión, espectadores e identidad desde el cliente.
+
+Comprobación rápida:
+
+```bash
+curl http://localhost:3000/api/health
+curl http://localhost:3000/api/streams
+```
+
+### Seguridad implementada
+
+- Contraseñas con scrypt (N=32768, r=8, p=1), sal aleatoria y comparación de tiempo constante.
+- Sesiones de siete días con token aleatorio de 256 bits, hash SHA-256 en SQLite y cookie HttpOnly, SameSite=Lax, Path=/ y Secure con HTTPS.
+- Expiración, cierre de sesión, rotación al acceder y revocación por suspensión.
+- Validación en servidor de los payloads; límite de cuerpo de 16 KiB y comprobación de origen contra CSRF.
+- Permisos consultados en servidor, sin aceptar identidad ni rol administrativo del cliente.
+- Límites persistentes: chat (10 mensajes/10 s por cuenta), login/registro (8 intentos/15 min por email), autenticación global (120/min), registros globales (60/h) y creación de canales (10 intentos/h por cuenta).
+- Moderación mediante suspensión/silencio, borrado de mensajes y una lista inicial de dos términos de spam de prueba (`spamcasino`, `scamlink`). Debe ampliarse para una comunidad real.
+- Errores consistentes sin imprimir credenciales ni errores internos de la base de datos.
+
+## Verificación reproducible
+
+```bash
+npm run db:setup
+npm run build
 npm run typecheck
+npm run test:api
 npm audit
 ```
 
+`test:api` levanta un servidor HTTP en un puerto local libre con una base SQLite temporal, aplica las migraciones y carga el seed. Usa únicamente identidades sintéticas y contraseñas aleatorias en memoria. Prueba autenticación, cookies, validación, permisos entre cuentas, favoritos, chat, moderación, límites y persistencia al reiniciar el servidor. También comprueba `Secure` con una configuración HTTPS sintética; esto no despliega un servidor TLS. El test detiene su servidor y elimina su base temporal, sin tocar `prisma/dev.db`. Debe ejecutarse después de `npm run build` y no en paralelo con otro build.
+
+## Qué falta para emitir vídeo y abrir al público
+
+**El backend local funciona para cuentas, canales, favoritos y chat. El vídeo todavía no está conectado.** Los ocho canales del seed están marcados como ejemplos, sin emisión y con cero espectadores; sus cuentas tienen contraseñas aleatorias descartadas, por lo que no son accesos de prueba públicos. Los clips no se simulan.
+
+Pendiente: servidor RTMP/WHIP (por ejemplo MediaMTX), claves de transmisión privadas y revocables, reproductor HLS/DASH, estado de emisión confirmado por el servidor de vídeo, almacenamiento de avatares/banners/clips, integraciones y secretos cifrados, verificación de email, recuperación de contraseña, PostgreSQL y migraciones para producción, transporte de chat SSE/WebSockets, paginación para grandes catálogos, límites distribuidos, monitorización y copias de seguridad con restauración probada. No hay pagos ni proveedores externos conectados. No desplegar esta versión como una plataforma de streaming lista para producción.
+
+`continuar.md` conserva los requisitos de fases posteriores. Los modelos y rutas de esta implementación están en `prisma/`, `lib/` y `app/api/[...path]/route.ts`.
+
 ## Recursos visuales
 
-Las portadas y capturas de los videojuegos provienen de los recursos públicos de Steam y pertenecen a sus respectivos titulares (Valve, FromSoftware/Bandai Namco, CD PROJEKT RED, EA/Respawn, Xbox y Team Cherry). Las fotografías de perfil son de Unsplash. Los archivos usados están en `public/images`; no se necesitan peticiones a esos servicios al navegar. Las fuentes DM Sans y Barlow Condensed se solicitan a Google Fonts, con fuentes locales de respaldo.
+Las portadas y capturas de videojuegos provienen de los recursos públicos de Steam y pertenecen a sus respectivos titulares. Las fotografías de perfil son de Unsplash. Los archivos están en `public/images`. Las fuentes DM Sans y Barlow Condensed se solicitan a Google Fonts con fuentes locales de respaldo.
+
+Prisma se mantiene en 6.16.2 para esta implementación. Los overrides de `effect` y `deepmerge-ts` actualizan dependencias de su CLI con avisos de seguridad; generación, migraciones y seed se comprueban con estos overrides.

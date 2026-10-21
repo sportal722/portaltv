@@ -33,115 +33,10 @@ import {
   Zap,
 } from "lucide-react";
 
-type Stream = {
-  id: number;
-  name: string;
-  title: string;
-  game: string;
-  image: string;
-  viewers: string;
-  avatar: number;
-  tag: string;
-  category: string;
-};
-const streams: Stream[] = [
-  {
-    id: 1,
-    name: "Kaizen",
-    title: "Rankeds con el squad. Hoy se sube 🚀",
-    game: "Counter-Strike 2",
-    image: "valorant",
-    viewers: "12,4 mil",
-    avatar: 0,
-    tag: "Competitivo",
-    category: "Gaming",
-  },
-  {
-    id: 2,
-    name: "LunaVibes",
-    title: "Un intento más y nos vamos… ¿o no? ✨",
-    game: "Elden Ring",
-    image: "elden",
-    viewers: "8,2 mil",
-    avatar: 1,
-    tag: "Español",
-    category: "Gaming",
-  },
-  {
-    id: 3,
-    name: "AlexRush",
-    title: "A por la victoria. ¡Únete al equipo!",
-    game: "Apex Legends",
-    image: "minecraft",
-    viewers: "5,6 mil",
-    avatar: 2,
-    tag: "Con la comunidad",
-    category: "Esports",
-  },
-  {
-    id: 4,
-    name: "NiaPlays",
-    title: "Night City nunca duerme 🌙",
-    game: "Cyberpunk 2077",
-    image: "cyberpunk",
-    viewers: "3,1 mil",
-    avatar: 3,
-    tag: "Chill",
-    category: "Gaming",
-  },
-  {
-    id: 5,
-    name: "DaniDrive",
-    title: "Sin frenos por México 🏎️",
-    game: "Forza Horizon 5",
-    image: "forza",
-    viewers: "2,8 mil",
-    avatar: 4,
-    tag: "Carreras",
-    category: "Gaming",
-  },
-  {
-    id: 6,
-    name: "SofiSound",
-    title: "Música para desconectar y charlar",
-    game: "Música y comunidad",
-    image: "hollow",
-    viewers: "1,9 mil",
-    avatar: 5,
-    tag: "Lo-fi",
-    category: "Música",
-  },
-  {
-    id: 7,
-    name: "Mika",
-    title: "Un café y nos ponemos al día ☕",
-    game: "Charlando",
-    image: "cyberpunk",
-    viewers: "1,2 mil",
-    avatar: 6,
-    tag: "Comunidad",
-    category: "Charlando",
-  },
-  {
-    id: 8,
-    name: "Kaizen",
-    title: "Fuera del setup: explorando la ciudad",
-    game: "IRL",
-    image: "forza",
-    viewers: "980",
-    avatar: 0,
-    tag: "Aventura",
-    category: "IRL",
-  },
-];
-const categories = [
-  { name: "Counter-Strike 2", image: "valorant", viewers: "142,8 mil" },
-  { name: "Elden Ring", image: "elden", viewers: "86,4 mil" },
-  { name: "Cyberpunk 2077", image: "cyberpunk", viewers: "54,2 mil" },
-  { name: "Apex Legends", image: "minecraft", viewers: "42,6 mil" },
-  { name: "Forza Horizon 5", image: "forza", viewers: "28,1 mil" },
-  { name: "Hollow Knight", image: "hollow", viewers: "19,5 mil" },
-];
+import { api, RequestError } from "@/lib/client";
+import type { Stream, User, Message } from "@/lib/types";
+import { categories } from "@/lib/catalog";
+import { AuthForm } from "@/components/auth-form";
 const filters = [
   { name: "Para ti", icon: Sparkles },
   { name: "Gaming", icon: Gamepad2 },
@@ -183,7 +78,15 @@ export default function Page() {
   const [filter, setFilter] = useState("Para ti");
   const [query, setQuery] = useState("");
   const [followed, setFollowed] = useState<number[]>([]);
-  const [ready, setReady] = useState(false);
+  const [streams, setStreams] = useState<Stream[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [chatError, setChatError] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [creatorLoading, setCreatorLoading] = useState(false);
+  const [myStream, setMyStream] = useState<Stream | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [modal, setModal] = useState<"creator" | "profile" | "about" | null>(
     null,
@@ -192,56 +95,214 @@ export default function Page() {
   const [notifications, setNotifications] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [slide, setSlide] = useState(0);
-  const [displayName, setDisplayName] = useState("");
-  const [nameInput, setNameInput] = useState("");
+  const displayName = user?.username || "";
   const [creatorSaved, setCreatorSaved] = useState(false);
-  const [draft, setDraft] = useState({ title: "", category: "Gaming" });
-  const [messages, setMessages] = useState<{ name: string; text: string }[]>([
-    { name: "LunaVibes", text: "¡Bienvenidos a la comunidad! 💜" },
-    { name: "AlexRush", text: "El diseño de Night City es increíble 🔥" },
-  ]);
+  const [draft, setDraft] = useState({
+    title: "",
+    category: "Gaming",
+    game: "",
+    image: "cyberpunk",
+  });
+  const [messages, setMessages] = useState<Message[]>([]);
   const [message, setMessage] = useState("");
   const dialogRef = useRef<HTMLDialogElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const chatVersion = useRef(0);
+  const selectedSlug = useRef<string | null>(null);
+  selectedSlug.current = selected?.slug || null;
   const isModal = !!modal || !!selected;
   useEffect(() => {
-    try {
-      const ids: unknown = JSON.parse(
-        localStorage.getItem("nexora-follows") || "[]",
-      );
-      if (Array.isArray(ids))
-        setFollowed(ids.filter((id): id is number => typeof id === "number"));
-      setDisplayName(localStorage.getItem("nexora-name") || "");
-    } catch {}
-    try {
-      const saved: unknown = JSON.parse(
-        localStorage.getItem("nexora-stream-draft") || "null",
-      );
-      if (
-        saved &&
-        typeof saved === "object" &&
-        "title" in saved &&
-        "category" in saved &&
-        typeof saved.title === "string" &&
-        typeof saved.category === "string"
-      ) {
-        setDraft({
-          title: saved.title.slice(0, 100),
-          category: filters.some((f) => f.name === saved.category)
-            ? saved.category
-            : "Gaming",
-        });
+    const controller = new AbortController();
+    async function load() {
+      try {
+        const [channels, account] = await Promise.all([
+          api<Stream[]>("streams", { signal: controller.signal }),
+          api<User | null>("auth/me", { signal: controller.signal }),
+        ]);
+        if (controller.signal.aborted) return;
+        const follows = account
+          ? await api<number[]>("follows", { signal: controller.signal })
+          : [];
+        if (controller.signal.aborted) return;
+        setFollowed(follows);
+        setUser(account);
+        setStreams(channels);
+      } catch (error) {
+        if (!controller.signal.aborted)
+          setApiError(
+            error instanceof Error
+              ? error.message
+              : "No se pudo cargar la comunidad.",
+          );
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
       }
-    } catch {}
-    setReady(true);
+    }
+    void load();
+    return () => controller.abort();
   }, []);
   useEffect(() => {
-    if (ready) {
+    if (!selected) return;
+    const slug = selected.slug;
+    const controller = new AbortController();
+    let fetching = false;
+    setMessages([]);
+    setMessage("");
+    setChatError("");
+    setChatLoading(true);
+    async function loadChat() {
+      if (fetching) return;
+      fetching = true;
+      const version = chatVersion.current;
       try {
-        localStorage.setItem("nexora-follows", JSON.stringify(followed));
-      } catch {}
+        const result = await api<Message[]>(`streams/${slug}/chat`, {
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted && version === chatVersion.current) {
+          setMessages(result);
+          setChatError("");
+        }
+      } catch (error) {
+        if (!controller.signal.aborted)
+          setChatError(
+            error instanceof Error
+              ? error.message
+              : "No se pudo cargar el chat.",
+          );
+      } finally {
+        fetching = false;
+        if (!controller.signal.aborted) setChatLoading(false);
+      }
     }
-  }, [followed, ready]);
+    void loadChat();
+    const timer = setInterval(() => void loadChat(), 3000);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+    };
+  }, [selected?.slug]);
+  useEffect(() => {
+    if (modal !== "creator" || !user || user.role === "viewer") return;
+    const controller = new AbortController();
+    setCreatorLoading(true);
+    setMyStream(null);
+    api<Stream[]>("streams?mine=true", { signal: controller.signal })
+      .then((items) => {
+        if (!controller.signal.aborted) {
+          const item = items[0] || null;
+          setMyStream(item);
+          setDraft(
+            item
+              ? {
+                  title: item.title,
+                  category: item.category,
+                  game: item.game,
+                  image: item.image,
+                }
+              : { title: "", category: "Gaming", game: "", image: "cyberpunk" },
+          );
+        }
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) setApiError(error.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setCreatorLoading(false);
+      });
+    return () => controller.abort();
+  }, [modal, user?.id, user?.role]);
+  async function authenticated(account: User) {
+    setBusy(true);
+    setUser(account);
+    setApiError("");
+    close();
+    try {
+      setFollowed(await api<number[]>("follows"));
+    } catch (error) {
+      reportError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+  function reportError(error: unknown) {
+    setApiError(
+      error instanceof Error
+        ? error.message
+        : "No se pudo completar la operación.",
+    );
+    if (error instanceof RequestError && error.status === 401) {
+      setUser(null);
+      setFollowed([]);
+      setSelected(null);
+      setModal("profile");
+    }
+  }
+  async function logout() {
+    setBusy(true);
+    try {
+      await api("auth/logout", { method: "POST" });
+      setUser(null);
+      setFollowed([]);
+      close();
+    } catch (error) {
+      reportError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function sendMessage() {
+    if (!selected || !message.trim() || busy) return;
+    if (!user) {
+      setSelected(null);
+      setModal("profile");
+      return;
+    }
+    setBusy(true);
+    setChatError("");
+    const slug = selected.slug;
+    chatVersion.current++;
+    try {
+      await api<Message>(`streams/${slug}/chat`, {
+        method: "POST",
+        body: JSON.stringify({ text: message.trim() }),
+      });
+      chatVersion.current++;
+      const result = await api<Message[]>(`streams/${slug}/chat`);
+      if (selectedSlug.current === slug) {
+        setMessage("");
+        setMessages(result);
+      }
+    } catch (error) {
+      if (selectedSlug.current === slug)
+        setChatError(
+          error instanceof Error ? error.message : "No se pudo enviar.",
+        );
+      if (error instanceof RequestError && error.status === 401)
+        reportError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function saveChannel(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || creatorLoading) return;
+    setBusy(true);
+    setApiError("");
+    const data = Object.fromEntries(new FormData(event.currentTarget));
+    try {
+      const channel = await api<Stream>(
+        myStream ? `streams/${myStream.slug}` : "streams",
+        { method: myStream ? "PATCH" : "POST", body: JSON.stringify(data) },
+      );
+      setMyStream(channel);
+      setCreatorSaved(true);
+      setStreams(await api<Stream[]>("streams"));
+    } catch (error) {
+      reportError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
   useEffect(() => {
     if (isModal) dialogRef.current?.showModal();
     else dialogRef.current?.close();
@@ -256,10 +317,29 @@ export default function Page() {
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, []);
-  function toggleFollow(id: number) {
-    setFollowed((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+  async function toggleFollow(id: number) {
+    if (!user) {
+      setSelected(null);
+      setModal("profile");
+      return;
+    }
+    if (busy) return;
+    setBusy(true);
+    setApiError("");
+    const following = followed.includes(id);
+    try {
+      await api("follows", {
+        method: following ? "DELETE" : "POST",
+        body: JSON.stringify({ streamId: id }),
+      });
+      setFollowed((prev) =>
+        following ? prev.filter((x) => x !== id) : [...prev, id],
+      );
+    } catch (error) {
+      reportError(error);
+    } finally {
+      setBusy(false);
+    }
   }
   function navigate(to: string) {
     setNav(to);
@@ -290,11 +370,17 @@ export default function Page() {
         .includes(query.toLocaleLowerCase()),
   );
   const visible =
-    showAll || query || filter !== "Para ti" || nav === "Siguiendo"
-      ? filtered
-      : filtered.slice(0, 4);
+    nav === "Clips"
+      ? []
+      : showAll || query || filter !== "Para ti" || nav === "Siguiendo"
+        ? filtered
+        : filtered.slice(0, 4);
   const feature =
-    slide === 0 ? streams[3] : slide === 1 ? streams[1] : streams[4];
+    (slide === 0
+      ? streams.find((s) => s.slug === "showcase-4")
+      : slide === 1
+        ? streams.find((s) => s.slug === "showcase-2")
+        : streams.find((s) => s.slug === "showcase-5")) || streams[0];
   return (
     <div className="app-shell">
       <aside className={`sidebar ${mobile ? "open" : ""}`}>
@@ -342,7 +428,7 @@ export default function Page() {
                 <span className="side-channel-info">
                   <strong>
                     {s.name}
-                    {s.id < 3 && <Verified />}
+                    {s.isDemo && s.id < 3 && <Verified />}
                   </strong>
                   <small>{s.game}</small>
                 </span>
@@ -469,22 +555,35 @@ export default function Page() {
             <span className="action-separator" />
             <button className="go-live" onClick={() => setModal("creator")}>
               <Radio size={16} />
-              <span>Iniciar directo</span>
+              <span>Mi canal</span>
             </button>
             <button
               className="profile-button"
               onClick={() => {
-                setNameInput(displayName);
                 setModal("profile");
               }}
               aria-label="Mi perfil"
             >
               <Avatar n={6} />
+              <span className="account-name">{displayName || "Entrar"}</span>
               <ChevronDown size={13} />
             </button>
           </div>
         </header>
         <main>
+          {apiError && (
+            <div className="api-error global-error" role="alert">
+              {apiError}
+              <button onClick={() => setApiError("")} aria-label="Cerrar aviso">
+                <X size={15} />
+              </button>
+            </div>
+          )}
+          {loading && (
+            <p className="api-status" role="status">
+              Conectando con la comunidad…
+            </p>
+          )}
           <div className="welcome-row">
             <div>
               <div className="welcome-kicker">
@@ -507,7 +606,7 @@ export default function Page() {
                 {nav === "Siguiendo"
                   ? "Los canales que sigues, siempre cerca de ti."
                   : nav === "Clips"
-                    ? "Descubre los momentos destacados de nuestros canales de demostración."
+                    ? "Aquí aparecerán los clips cuando conectemos el servicio de vídeo."
                     : "Grandes momentos. Gente auténtica. Encuentra tu lugar en NEXORA."}
               </p>
             </div>
@@ -515,7 +614,7 @@ export default function Page() {
               <i /> LA COMUNIDAD ESTÁ ON
             </span>
           </div>
-          {nav === "Inicio" && !query && (
+          {nav === "Inicio" && !query && feature && (
             <section className="hero" aria-label="Canal destacado">
               <div
                 className={`hero-art art-${slide}`}
@@ -527,7 +626,7 @@ export default function Page() {
               <div className="hero-content">
                 <div className="hero-top">
                   <span className="live-badge">
-                    <i /> EN DIRECTO
+                    <i /> {feature.isDemo ? "EJEMPLO" : "SIN EMISIÓN"}
                   </span>
                   <span className="featured-label">
                     <Sparkles size={13} /> DESTACADO DE HOY
@@ -568,7 +667,7 @@ export default function Page() {
                   <Avatar n={feature.avatar} live />
                   <span>
                     <strong>
-                      {feature.name} <Verified />
+                      {feature.name} {feature.isDemo && <Verified />}
                     </strong>
                     <small>
                       {feature.game}
@@ -584,7 +683,7 @@ export default function Page() {
                   className="primary-button watch-button"
                   onClick={() => setSelected(feature)}
                 >
-                  <Play size={15} fill="currentColor" /> Ver directo{" "}
+                  <Play size={15} fill="currentColor" /> Ver canal{" "}
                   <ArrowRight size={16} />
                 </button>
               </div>
@@ -601,7 +700,7 @@ export default function Page() {
                 )}
               </div>
               <div className="hero-bottom">
-                <span className="demo-label">VISTA PREVIA · DEMO</span>
+                <span className="demo-label">VÍDEO PENDIENTE DE CONECTAR</span>
                 <div className="hero-controls">
                   <button
                     className="hero-arrow"
@@ -666,9 +765,9 @@ export default function Page() {
                   ? "Canales que sigues"
                   : nav === "Clips"
                     ? "Clips para descubrir"
-                    : "Directos que van contigo"}
+                    : "Canales que van contigo"}
                 <span className="section-tag">
-                  {nav === "Clips" ? "DEMO" : "LIVE"}
+                  {nav === "Clips" ? "PRÓXIMAMENTE" : "COMUNIDAD"}
                 </span>
               </h2>
               <button onClick={() => setShowAll(!showAll)}>
@@ -695,7 +794,7 @@ export default function Page() {
                         </>
                       ) : (
                         <>
-                          <i /> EN DIRECTO
+                          <i /> {s.isDemo ? "EJEMPLO" : "SIN EMISIÓN"}
                         </>
                       )}
                     </span>
@@ -724,6 +823,7 @@ export default function Page() {
                       className="follow-icon"
                       aria-label={`${followed.includes(s.id) ? "Dejar de seguir a" : "Seguir a"} ${s.name}`}
                       aria-pressed={followed.includes(s.id)}
+                      disabled={busy}
                       onClick={() => toggleFollow(s.id)}
                     >
                       <Heart
@@ -736,7 +836,7 @@ export default function Page() {
                       onClick={() => setSelected(s)}
                     >
                       {s.name}
-                      <Verified />
+                      {s.isDemo && <Verified />}
                     </button>
                     <span className="stream-game">{s.game}</span>
                     <div className="stream-tags">
@@ -752,13 +852,21 @@ export default function Page() {
                 <Compass size={36} />
                 <h3>
                   {nav === "Siguiendo"
-                    ? "Tu comunidad empieza con un follow"
-                    : "Todavía no hay coincidencias"}
+                    ? user
+                      ? "Tu comunidad empieza con un follow"
+                      : "Inicia sesión para ver tus canales"
+                    : nav === "Clips"
+                      ? "Todavía no hay clips"
+                      : loading
+                        ? "Cargando canales…"
+                        : "Todavía no hay coincidencias"}
                 </h3>
                 <p>
                   {nav === "Siguiendo"
                     ? "Pulsa el corazón de un canal para encontrarlo aquí."
-                    : "Prueba otro juego, canal o categoría."}
+                    : nav === "Clips"
+                      ? "Los clips estarán disponibles cuando conectemos el servidor de vídeo."
+                      : "Prueba otro juego, canal o categoría."}
                 </p>
                 <button
                   className="primary-button"
@@ -809,7 +917,7 @@ export default function Page() {
                   <h3>{cat.name}</h3>
                   <p>
                     <i />
-                    {cat.viewers} espectadores
+                    {streams.filter((s) => s.game === cat.name).length} canales
                   </p>
                   <span className="category-tag">
                     {i === 1
@@ -856,7 +964,7 @@ export default function Page() {
             : modal === "creator"
               ? "Preparar un directo"
               : modal === "profile"
-                ? "Perfil local"
+                ? "Tu cuenta"
                 : "Sobre NEXORA"
         }
         ref={dialogRef}
@@ -884,13 +992,13 @@ export default function Page() {
                   }}
                 >
                   <span className="demo-player-badge">
-                    CANAL DE DEMOSTRACIÓN
+                    {selected.isDemo ? "CANAL DE EJEMPLO" : "CANAL SIN EMISIÓN"}
                   </span>
                   <div className="player-notice">
                     <Radio size={36} />
                     <h2>Estás en el canal de {selected.name}</h2>
                     <p>
-                      Esta es una vista previa de NEXORA.
+                      Este canal todavía no está emitiendo.
                       <br />
                       La emisión de vídeo todavía no está conectada.
                     </p>
@@ -900,13 +1008,14 @@ export default function Page() {
                   <Avatar n={selected.avatar} live />
                   <div>
                     <h2>
-                      {selected.name} <Verified />
+                      {selected.name} {selected.isDemo && <Verified />}
                     </h2>
                     <p>{selected.title}</p>
                     <small>{selected.game} · Español</small>
                   </div>
                   <button
                     className="primary-button"
+                    disabled={busy}
                     onClick={() => toggleFollow(selected.id)}
                   >
                     <Heart
@@ -923,7 +1032,18 @@ export default function Page() {
                 <h3>
                   <MessageCircle size={17} /> Chat de la comunidad
                 </h3>
-                <span className="chat-demo">Chat local de demostración</span>
+                <span className="chat-demo">
+                  {user
+                    ? `Conectado como ${user.username}`
+                    : "Inicia sesión para participar"}{" "}
+                  · Actualiza cada 3 s
+                </span>
+                {chatLoading && <p role="status">Cargando mensajes…</p>}
+                {chatError && (
+                  <p className="api-error" role="alert">
+                    {chatError}
+                  </p>
+                )}
                 <div className="chat-messages">
                   {messages.map((m, i) => (
                     <p key={i}>
@@ -934,13 +1054,7 @@ export default function Page() {
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    if (message.trim()) {
-                      setMessages([
-                        ...messages,
-                        { name: displayName || "Tú", text: message.trim() },
-                      ]);
-                      setMessage("");
-                    }
+                    void sendMessage();
                   }}
                 >
                   <label htmlFor="chat-message" className="sr-only">
@@ -955,7 +1069,7 @@ export default function Page() {
                   />
                   <button
                     className="primary-button"
-                    disabled={!message.trim()}
+                    disabled={busy || !message.trim()}
                     aria-label="Enviar mensaje"
                   >
                     <Send size={16} />
@@ -967,111 +1081,139 @@ export default function Page() {
         ) : modal === "profile" ? (
           <>
             <Mark />
-            <span className="eyebrow modal-kicker">TU ESPACIO EN NEXORA</span>
-            <h2>
-              {displayName ? `Hola, ${displayName}` : "Todo empieza contigo."}
-            </h2>
-            <p>Elige cómo te verá la comunidad en esta demo.</p>
-            <form
-              className="profile-form"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const value = nameInput.trim();
-                if (value) {
-                  setDisplayName(value);
-                  try {
-                    localStorage.setItem("nexora-name", value);
-                  } catch {}
-                  close();
-                }
-              }}
-            >
-              <label htmlFor="display-name">Tu nombre</label>
-              <input
-                id="display-name"
-                placeholder="¿Cómo te llamas?"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                minLength={2}
-                maxLength={24}
-                required
-              />
-              <button className="primary-button">
-                Guardar perfil <ArrowRight size={17} />
-              </button>
-            </form>
-            <small className="modal-footnote">
-              Perfil local de demostración. No crea una cuenta ni una sesión
-              real.
-            </small>
-          </>
-        ) : modal === "creator" ? (
-          <>
-            <span className="modal-symbol">
-              <Radio size={27} />
-            </span>
-            <span className="eyebrow modal-kicker">EL ESCENARIO ES TUYO</span>
-            <h2>
-              {creatorSaved
-                ? "Tu idea ya tiene un lugar."
-                : "Dale voz a lo que te mueve."}
-            </h2>
-            <p>
-              {creatorSaved
-                ? "Tu borrador está guardado en este navegador. La conexión con OBS y el servidor de vídeo será el siguiente paso."
-                : "Prepara tu próximo directo. Este panel es una vista previa para creadores."}
-            </p>
-            {creatorSaved ? (
-              <button className="primary-button" onClick={close}>
-                <Check size={17} /> Listo
-              </button>
-            ) : (
-              <form
-                className="profile-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const data = new FormData(e.currentTarget);
-                  setDraft({
-                    title: String(data.get("title") || ""),
-                    category: String(data.get("category") || "Gaming"),
-                  });
-                  try {
-                    localStorage.setItem(
-                      "nexora-stream-draft",
-                      JSON.stringify(Object.fromEntries(data)),
-                    );
-                  } catch {}
-                  setCreatorSaved(true);
-                }}
-              >
-                <label htmlFor="stream-title">Título del directo</label>
-                <input
-                  id="stream-title"
-                  name="title"
-                  defaultValue={draft.title}
-                  placeholder="Hoy empieza algo increíble…"
-                  required
-                  maxLength={100}
-                />
-                <label htmlFor="stream-category">Categoría</label>
-                <select
-                  id="stream-category"
-                  name="category"
-                  defaultValue={draft.category}
+            {user ? (
+              <>
+                <h2>Hola, {user.username}</h2>
+                <p>
+                  Tu cuenta de{" "}
+                  {user.role === "creator"
+                    ? "creador"
+                    : user.role === "admin"
+                      ? "administración"
+                      : "espectador"}{" "}
+                  está conectada.
+                </p>
+                {user.role === "admin" && (
+                  <a className="primary-button" href="/admin">
+                    Administración
+                  </a>
+                )}
+                <button
+                  className="primary-button"
+                  disabled={busy}
+                  onClick={() => void logout()}
                 >
-                  {filters.slice(1).map((f) => (
-                    <option key={f.name}>{f.name}</option>
-                  ))}
-                </select>
-                <div className="connection-status">
-                  <span /> Servidor de streaming pendiente de conectar
-                </div>
-                <button className="primary-button">
-                  Guardar borrador <ArrowRight size={17} />
+                  Cerrar sesión
                 </button>
-              </form>
+              </>
+            ) : (
+              <AuthForm
+                onAuthenticated={(account) => void authenticated(account)}
+              />
             )}
           </>
+        ) : modal === "creator" ? (
+          !user ? (
+            <AuthForm
+              onAuthenticated={(account) => void authenticated(account)}
+            />
+          ) : user.role === "viewer" ? (
+            <>
+              <h2>Un espacio para creadores</h2>
+              <p>
+                Tu cuenta es de espectador. Para preparar un canal necesitas una
+                cuenta de creador.
+              </p>
+            </>
+          ) : (
+            <>
+              <span className="modal-symbol">
+                <Radio size={27} />
+              </span>
+              <span className="eyebrow modal-kicker">EL ESCENARIO ES TUYO</span>
+              <h2>
+                {creatorSaved
+                  ? "Tu canal está guardado."
+                  : myStream
+                    ? "Configura tu canal."
+                    : "Dale voz a lo que te mueve."}
+              </h2>
+              <p>
+                {creatorSaved
+                  ? "Tu canal se ha guardado en la base de datos. Está sin emisión hasta conectar un servidor de vídeo."
+                  : "Gestiona el título y la categoría de tu canal."}
+              </p>
+              {apiError && (
+                <p className="api-error" role="alert">
+                  {apiError}
+                </p>
+              )}
+              {creatorLoading ? (
+                <p role="status">Cargando tu canal…</p>
+              ) : creatorSaved ? (
+                <button className="primary-button" onClick={close}>
+                  <Check size={17} />
+                  Listo
+                </button>
+              ) : (
+                <form
+                  key={myStream?.id || "new"}
+                  className="profile-form"
+                  onSubmit={(event) => void saveChannel(event)}
+                >
+                  <label htmlFor="stream-title">Título del canal</label>
+                  <input
+                    id="stream-title"
+                    name="title"
+                    defaultValue={draft.title}
+                    minLength={3}
+                    maxLength={100}
+                    required
+                  />
+                  <label htmlFor="stream-category">Categoría</label>
+                  <select
+                    id="stream-category"
+                    name="category"
+                    defaultValue={draft.category}
+                  >
+                    {filters.slice(1).map((f) => (
+                      <option key={f.name}>{f.name}</option>
+                    ))}
+                  </select>
+                  <label htmlFor="stream-game">Juego o tema</label>
+                  <input
+                    id="stream-game"
+                    name="game"
+                    defaultValue={draft.game}
+                    minLength={2}
+                    maxLength={60}
+                    required
+                  />
+                  <label htmlFor="stream-image">Portada</label>
+                  <select
+                    id="stream-image"
+                    name="image"
+                    defaultValue={draft.image}
+                  >
+                    {categories.map((c) => (
+                      <option key={c.image} value={c.image}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="connection-status">
+                    <span />
+                    Servidor de vídeo pendiente. No se puede iniciar una
+                    emisión.
+                  </div>
+                  <button className="primary-button" disabled={busy}>
+                    {busy ? "Guardando…" : "Guardar canal"}
+                    <ArrowRight size={17} />
+                  </button>
+                </form>
+              )}
+            </>
+          )
         ) : (
           <>
             <Mark />
@@ -1098,8 +1240,9 @@ export default function Page() {
               </span>
             </div>
             <small className="modal-footnote">
-              Prototipo interactivo. Los canales, cifras y chats son de
-              demostración; no hay streaming ni autenticación real.
+              Cuentas, canales, favoritos y chat conectados al backend local.
+              Los canales marcados como ejemplo no emiten vídeo. La conexión con
+              OBS y el servidor de vídeo está pendiente.
             </small>
           </>
         )}

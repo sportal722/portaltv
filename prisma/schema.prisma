@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "sqlite"
+  url = env("DATABASE_URL")
+}
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  username String @unique
+  passwordHash String
+  role String @default("viewer")
+  status String @default("active")
+  createdAt DateTime @default(now())
+  sessions Session[]
+  streams Stream[]
+  follows Follow[]
+  messages ChatMessage[]
+}
+model Session {
+  tokenHash String @id
+  userId String
+  expiresAt DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([expiresAt])
+}
+model Stream {
+  id Int @id @default(autoincrement())
+  slug String @unique
+  ownerId String
+  title String
+  game String
+  category String
+  image String @default("cyberpunk")
+  avatar Int @default(6)
+  tag String @default("Comunidad")
+  isDemo Boolean @default(false)
+  status String @default("offline")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  follows Follow[]
+  messages ChatMessage[]
+  @@index([ownerId])
+  @@index([category])
+}
+model Follow {
+  userId String
+  streamId Int
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  @@id([userId, streamId])
+  @@index([streamId])
+}
+model ChatMessage {
+  id Int @id @default(autoincrement())
+  userId String
+  streamId Int
+  text String
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  @@index([streamId, id])
+  @@index([userId])
+}
+model RateLimit {
+  key String @id
+  count Int
+  expiresAt DateTime
+  @@index([expiresAt])
+}

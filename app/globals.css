@@ -2210,3 +2210,131 @@ footer > button {
     align-self: start;
   }
 }
+.api-error {
+  padding: 12px;
+  border: 1px solid #ff6c8050;
+  background: #ff6c8010;
+  border-radius: 7px;
+  color: #ffafbd;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.global-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.api-status {
+  color: #c8a7ef;
+  font-size: 12px;
+}
+.auth-tabs {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+.auth-tabs button {
+  padding: 8px 10px;
+  border: 1px solid #50405d;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.auth-tabs button[aria-pressed="true"] {
+  background: #a67bf0;
+  color: #21152f;
+}
+.auth-page {
+  max-width: 460px;
+  margin: 60px auto;
+  padding: 32px;
+  border: 1px solid #433251;
+  border-radius: 14px;
+  background: #17131e;
+}
+.auth-page > p {
+  color: #a79ab4;
+  line-height: 1.7;
+}
+.auth-page > a:last-child {
+  display: block;
+  margin-top: 25px;
+  color: #c8a7ef;
+}
+.account-name {
+  font-size: 10px;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.modal > p {
+  line-height: 1.7;
+}
+.profile-form:has(input[name="game"]) {
+  gap: 7px;
+}
+.profile-form:has(input[name="game"]) input,
+.profile-form:has(input[name="game"]) select {
+  padding: 9px;
+}
+@media (max-width: 760px) {
+  .account-name {
+    display: none;
+  }
+  .auth-page {
+    margin: 30px 16px;
+  }
+  .chat-panel {
+    max-height: 360px;
+  }
+}
+.admin-page {
+  max-width: 900px;
+  padding: 35px 20px;
+  margin: auto;
+}
+.admin-page > p {
+  color: #b3a2c2;
+}
+.admin-page h1 {
+  margin-top: 30px;
+}
+.admin-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 25px;
+}
+.admin-list article {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 17px;
+  background: #19141f;
+  border: 1px solid #45304e;
+  border-radius: 7px;
+}
+.admin-list article > span {
+  color: #b3a2c2;
+}
+.admin-list label {
+  margin-left: auto;
+  font-size: 10px;
+}
+.admin-list select {
+  margin-left: 12px;
+  background: #282030;
+  color: #eee;
+  border: 1px solid #635173;
+  padding: 6px;
+  border-radius: 5px;
+}
+@media (max-width: 600px) {
+  .admin-list article {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .admin-list label {
+    width: 100%;
+    margin: 0;
+  }
+}
