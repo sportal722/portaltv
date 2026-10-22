@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { randomBytes, createHash } from "node:crypto";
+import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import {
   ApiError,
@@ -176,13 +176,23 @@ async function handle(request: NextRequest, context: Context) {
           "Puedes crear un máximo de cinco canales.",
         );
       const data = streamInput(await body(request));
-      const result = await prisma.stream.create({
-        data: {
-          ...data,
-          ownerId: user.id,
-          slug: `${user.username.toLowerCase().replace(/_/g, "-")}-${randomBytes(5).toString("hex")}`,
-        },
-        include: streamInclude,
+      const result = await prisma.$transaction(async (tx) => {
+        const base = user.username.toLowerCase();
+        let slug = base;
+        for (
+          let number = 2;
+          await tx.stream.findFirst({
+            where: { OR: [{ slug }, { legacySlug: slug }] },
+            select: { id: true },
+          });
+          number++
+        ) {
+          slug = `${base}--${number}`;
+        }
+        return tx.stream.create({
+          data: { ...data, ownerId: user.id, slug },
+          include: streamInclude,
+        });
       });
       return json(serializeStream(result), 201);
     }

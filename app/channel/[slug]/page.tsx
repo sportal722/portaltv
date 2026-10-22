@@ -1,6 +1,7 @@
 "use client";
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Heart, PanelRightClose, PanelRightOpen, Share2 } from "lucide-react";
 import { api } from "@/lib/client";
 import type { Stream, User } from "@/lib/types";
@@ -14,6 +15,7 @@ export default function Channel({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
+  const router = useRouter();
   const [stream, setStream] = useState<Stream | null>(null),
     [user, setUser] = useState<User | null>(null),
     [following, setFollowing] = useState(false),
@@ -38,6 +40,10 @@ export default function Channel({
           ? await api<Stream[]>("moderation", { signal: c.signal })
           : [];
         if (!c.signal.aborted) {
+          if (s.slug !== slug) {
+            router.replace(`/channel/${s.slug}`);
+            return;
+          }
           setStream(s);
           setUser(u);
           setFollowing(f.includes(s.id));

@@ -321,8 +321,8 @@ try {
     "Server owns channel identity and live state",
   );
   check(
-    /^[a-z0-9-]+$/.test(channel.slug),
-    "Username underscores normalized in channel slugs",
+    channel.slug === creatorUser.username.toLowerCase(),
+    "Channel URL uses the exact username without random suffix",
   );
   check(
     (await request(`streams/${channel.slug}`)).data.id === channel.id,

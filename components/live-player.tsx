@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Radio } from "lucide-react";
 import { api } from "@/lib/client";
+import { playbackRecovery } from "@/lib/playback-recovery";
 import type { Stream } from "@/lib/types";
 
 export function LivePlayer({ stream }: { stream: Stream }) {
@@ -45,38 +46,72 @@ export function LivePlayer({ stream }: { stream: Stream }) {
   useEffect(() => {
     const element = video.current;
     if (!element || !source) return;
-    setNotice("");
+    setNotice("Cargando la emisión…");
+    let managedByHls = false;
+    const recovery = playbackRecovery(setNotice);
     let cancelled = false;
     let dispose = () => {};
-    const failed = () =>
-      setNotice(
-        "No se pudo reproducir la señal. Comprueba la conexión y vuelve a abrir el canal.",
-      );
+    const failed = () => {
+      if (cancelled || managedByHls) return;
+      if (element.error?.code === MediaError.MEDIA_ERR_NETWORK) {
+        recovery.network(() => {
+          element.src = source;
+          element.load();
+          void element.play().catch(() => {});
+        });
+      } else if (
+        element.error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
+      ) {
+        setNotice(
+          "Tu navegador no admite el formato de esta emisión. Usa un navegador compatible con H.264 y AAC.",
+        );
+      } else {
+        recovery.media(() => {
+          element.load();
+          void element.play().catch(() => {});
+        });
+      }
+    };
     const loaded = () => setNotice("");
     element.addEventListener("error", failed);
     element.addEventListener("loadeddata", loaded);
+    element.addEventListener("playing", loaded);
     if (element.canPlayType("application/vnd.apple.mpegurl")) {
       element.src = source;
       void element.play().catch(() => {});
     } else {
       void import("hls.js")
-        .then(({ default: Hls, ErrorDetails }) => {
+        .then(({ default: Hls, ErrorDetails, ErrorTypes }) => {
           if (cancelled) return;
           if (!Hls.isSupported()) {
             setNotice("Tu navegador no admite reproducción HLS.");
             return;
           }
+          managedByHls = true;
           const hls = new Hls();
           dispose = () => hls.destroy();
           hls.on(Hls.Events.ERROR, (_, data) => {
             if (data.fatal) {
               if (
                 data.details === ErrorDetails.MANIFEST_INCOMPATIBLE_CODECS_ERROR
-              )
+              ) {
+                recovery.stop();
                 setNotice(
                   "Tu navegador no admite el códec de esta emisión. Usa un navegador compatible con H.264 y AAC.",
                 );
-              else failed();
+              } else if (data.type === ErrorTypes.NETWORK_ERROR) {
+                recovery.network(() => {
+                  hls.stopLoad();
+                  hls.loadSource(source);
+                  hls.startLoad();
+                });
+              } else if (data.type === ErrorTypes.MEDIA_ERROR) {
+                recovery.media(() => hls.recoverMediaError());
+              } else {
+                setNotice(
+                  "No se pudo abrir la emisión. Pulsa Reintentar reproducción.",
+                );
+              }
             }
           });
           hls.loadSource(source);
@@ -86,13 +121,20 @@ export function LivePlayer({ stream }: { stream: Stream }) {
             () => void element.play().catch(() => {}),
           );
         })
-        .catch(failed);
+        .catch(() => {
+          if (!cancelled)
+            setNotice(
+              "No se pudo cargar el reproductor. Pulsa Reintentar reproducción.",
+            );
+        });
     }
     return () => {
       cancelled = true;
+      recovery.stop();
       dispose();
       element.removeEventListener("error", failed);
       element.removeEventListener("loadeddata", loaded);
+      element.removeEventListener("playing", loaded);
       element.removeAttribute("src");
       element.load();
     };

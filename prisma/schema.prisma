@@ -31,6 +31,7 @@ model Session {
 model Stream {
   id Int @id @default(autoincrement())
   slug String @unique
+  legacySlug String? @unique
   ownerId String
   title String
   game String

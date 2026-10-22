@@ -179,6 +179,40 @@ try {
   ).data;
   const root = `streams/${channel.slug}`,
     other = `streams/${otherChannel.slug}`;
+  check(
+    channel.slug === "channelowner",
+    "Primary channel URL is the username without random suffix",
+  );
+  const extra = (
+    await request("streams", {
+      method: "POST",
+      who: owner,
+      data: { title: "Second channel", category: "IRL" },
+      status: 201,
+    })
+  ).data;
+  check(
+    extra.slug === "channelowner--2",
+    "Additional channel uses a readable sequence",
+  );
+  await db.stream.update({
+    where: { id: channel.id },
+    data: { legacySlug: "channelowner-012345abcd" },
+  });
+  const legacy = "streams/channelowner-012345abcd";
+  check(
+    (await request(legacy)).data.slug === channel.slug,
+    "Legacy links resolve to the canonical channel",
+  );
+  await request(legacy, {
+    method: "PATCH",
+    who: outsider,
+    data: { title: "Alias takeover" },
+    status: 403,
+  });
+  await request(`${legacy}/key`, { who: outsider, status: 403 });
+  await request(`${legacy}/staff-chat`, { who: outsider, status: 403 });
+
   await request(root, {
     method: "PATCH",
     who: owner,

@@ -220,7 +220,7 @@ export const streamInclude = {
 export function serializeStream(
   stream: Prisma.StreamGetPayload<{ include: typeof streamInclude }>,
 ) {
-  const { owner, _count, ...rest } = stream;
+  const { owner, _count, legacySlug: _legacySlug, ...rest } = stream;
   return {
     ...rest,
     name: owner.username,
@@ -229,10 +229,10 @@ export function serializeStream(
   };
 }
 export async function findStream(slug: string) {
-  if (!/^[a-z0-9-]{3,80}$/.test(slug))
+  if (!/^[a-z0-9_-]{3,80}$/.test(slug))
     throw new ApiError(400, "VALIDATION", "Canal no válido.");
-  const stream = await prisma.stream.findUnique({
-    where: { slug },
+  const stream = await prisma.stream.findFirst({
+    where: { OR: [{ slug }, { legacySlug: slug }] },
     include: streamInclude,
   });
   if (

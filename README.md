@@ -25,6 +25,10 @@ python3 scripts/test-migration.py
 
 Detén el servidor de desarrollo antes de compilar: ambos usan `.next`. Las pruebas API crean bases SQLite y servidores aislados y los eliminan al terminar. No usan cuentas reales ni el servidor público. La prueba de migración comprueba relaciones y conservación de sesiones/claves/conversaciones.
 
+## Direcciones de canales
+
+El canal principal usa `/channel/usuario`, conservando guiones bajos del nombre y sin sufijos aleatorios. Los canales adicionales se numeran como `usuario--2`. Las direcciones antiguas siguen siendo alias y abren la dirección nueva; las claves OBS y fuentes de alertas existentes se conservan. El reproductor intenta recuperarse de errores de red tres veces (1, 2 y 4 segundos) y de un error de decodificación una vez; después ofrece reintento manual.
+
 ## Recorridos
 
 - `/`: catálogo real, búsqueda por canal/título/juego/etiquetas/idioma, categorías, seguidos y filtro en directo. Las listas vacías se muestran sin contenido inventado.
