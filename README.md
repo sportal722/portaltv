@@ -117,7 +117,7 @@ npm audit
 
 ## Conectar OBS y reproducir vídeo
 
-El servidor de vídeo vive en el repositorio separado [nexora-streaming](https://github.com/sportal722/nexora-streaming/tree/coderabbit/custom-streaming-page-branding/b1c42684). Sigue su README para instalar MediaMTX y configurar estas variables en el `.env` privado de esta web:
+El servidor de vídeo vive en el repositorio separado [nexora-streaming](https://github.com/sportal722/nexora-streaming). Sigue su README para instalar MediaMTX y configurar estas variables en el `.env` privado de esta web:
 
 ```dotenv
 MEDIAMTX_API_URL="http://127.0.0.1:9997"
