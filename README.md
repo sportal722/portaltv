@@ -12,8 +12,8 @@ Actualizado el **22 de octubre de 2026**. Plataforma desplegada en [cloudcraft.m
 - [x] Registro, inicio/cierre de sesión, cuentas de espectador/creador y permisos comprobados en backend.
 - [x] Emisión desde OBS por RTMPS, detección del estado real, reproducción HLS y claves privadas renovables/revocables.
 - [x] Canales con dirección legible (`/channel/usuario`), canales adicionales numerados y compatibilidad con enlaces antiguos.
-- [x] Reproductor con estados de carga/error/desconexión, reintento manual y recuperación automática limitada de red/decodificación.
-- [x] Panel del creador: título, categoría, actividad, etiquetas, idioma, descripción, miniatura HTTPS, vista previa, claves OBS y equipo.
+- [x] Reproductor con estados de carga/error/desconexión, reintentos limitados, conversión H.264/AAC y alternativa WebM VP9/Opus seleccionada según el navegador.
+- [x] Panel del creador: título, categoría, actividad, etiquetas, idioma, descripción, portada HTTPS de respaldo, vista previa, claves OBS y equipo. Capturas automáticas del directo cada 10 segundos.
 - [x] Chat público en tiempo real y chat privado del equipo, moderadores, borrado, sanciones temporales/permanentes, modo lento, solo seguidores y filtros de palabras/enlaces.
 - [x] Comandos persistentes con permisos y tiempos de espera; alertas de seguidores personalizables con fuente privada para OBS.
 - [x] Búsqueda, categorías, filtro de directos, seguir/dejar de seguir y conteos reales de seguidores, mensajes y moderadores.
@@ -21,7 +21,7 @@ Actualizado el **22 de octubre de 2026**. Plataforma desplegada en [cloudcraft.m
 - [x] HTTPS con Caddy, servicios de streaming separados de los paneles existentes, copias locales automáticas y comprobaciones de salud.
 - [x] Pruebas de API, permisos, migraciones, conservación de datos, emisión y reproducción; última ejecución local: **222 comprobaciones API + 196 de comunidad**.
 
-**Pendiente operativo inmediato:** resolver los cortes intermitentes de señal/listas HLS y comprobar una emisión sostenida desde OBS. La reconexión del reproductor ya existe, pero la última comprobación pública registró respuestas 404 al recargar listas; la causa sigue pendiente de diagnóstico.
+**Seguimiento operativo:** comprobar estabilidad sostenida desde OBS y capacidad con espectadores reales. La entrega procesada usa segmentos publicados atómicamente desde Caddy, independientes de las sesiones HLS de MediaMTX; la recuperación del reproductor no puede compensar una conexión de entrada que deja de enviar señal.
 
 ### Fase 1 — Fundamentos y lanzamiento controlado
 
@@ -64,7 +64,7 @@ La emisión, las cuentas básicas, el estudio y la moderación ya tienen una imp
 
 ### Límites actuales
 
-Una calidad de origen HLS MPEG-TS, un VPS y SQLite. Todavía no hay transcodificación adaptativa, CDN, VOD/clips, pagos ni estadísticas históricas de audiencia. Las alertas cubren seguidores y eventos de prueba; las copias son locales. El chat usa SSE con consultas periódicas a SQLite y necesita pruebas de capacidad antes de ampliar el lanzamiento.
+HLS H.264/AAC hasta 720p y alternativa DASH/WebM VP9/Opus hasta 480p, un VPS y SQLite. Hay transcodificación de compatibilidad y capturas en vivo; todavía no hay escalera de calidad adaptativa, CDN, VOD/clips, pagos ni estadísticas históricas de audiencia. Las alertas cubren seguidores y eventos de prueba; las copias son locales. El chat usa SSE con consultas periódicas a SQLite y necesita pruebas de capacidad antes de ampliar el lanzamiento.
 
 El [roadmap técnico](docs/ROADMAP.md) amplía dependencias y criterios de cierre. Cada función pendiente requiere implementación, permisos, pruebas y validación operativa antes de marcarse como terminada.
 
@@ -87,6 +87,7 @@ npm run typecheck
 npm run test:api
 npm run test:community
 python3 scripts/test-migration.py
+node scripts/test-playback-recovery.mjs
 ```
 
 Detén el servidor de desarrollo antes de compilar: ambos usan `.next`. Las pruebas API crean bases SQLite y servidores aislados y los eliminan al terminar. No usan cuentas reales ni el servidor público. La prueba de migración comprueba relaciones y conservación de sesiones/claves/conversaciones.
@@ -134,11 +135,11 @@ El chat usa **Server-Sent Events** para enviar instantáneas al cliente al cambi
 
 `APP_URL` debe coincidir con el origen público. Escrituras: JSON y `Origin` exacto. Cookies `HttpOnly`, `SameSite=Lax` y `Secure` bajo HTTPS. Fuera de localhost se requiere HTTPS. El callback servidor a servidor de MediaMTX no usa cookies/Origin; valida sus propias credenciales.
 
-Variables en `.env.example`: `DATABASE_URL`, `APP_URL`, `MEDIAMTX_API_URL`, `MEDIAMTX_API_PASSWORD`, `VIDEO_INGEST_URL`, `VIDEO_HLS_URL`. Nunca publiques `.env`, bases de datos, contraseñas ni certificados privados.
+Variables en `.env.example`: `DATABASE_URL`, `APP_URL`, `MEDIAMTX_API_URL`, `MEDIAMTX_API_PASSWORD`, `VIDEO_INGEST_URL`, `VIDEO_HLS_URL`, `VIDEO_MEDIA_URL`, `VIDEO_STATE_FILE`. Nunca publiques `.env`, bases de datos, contraseñas ni certificados privados.
 
 Producción actual: https://cloudcraft.mx. OBS: servicio personalizado, servidor `rtmps://cloudcraft.mx:1936/live`, clave completa generada en **Estudio → Emisión y OBS**. Vídeo H.264/yuv420p, audio AAC estéreo, intervalo de fotogramas clave de 2 segundos. No es necesario renovar una clave existente al actualizar la plataforma.
 
-La emisión se valida mediante MediaMTX, con rutas por canal y secreto privado. El backend consulta el estado real; el callback solo autoriza. Renovar/revocar corta la conexión anterior. Se usa HLS MPEG-TS con una calidad de origen; no hay transcodificación adaptativa, CDN ni grabación VOD en esta entrega.
+La emisión se valida mediante MediaMTX, con rutas por canal y secreto privado. El backend consulta el estado real; el callback solo autoriza. Renovar/revocar corta la conexión anterior. El worker normaliza vídeo/audio y genera HLS H.264/AAC, DASH/WebM VP9/Opus y capturas JPEG. Límite inicial de dos emisiones procesadas, con cuotas de CPU/memoria y limpieza de segmentos. No hay selector de calidad adaptativa, CDN ni grabación VOD. Consulta [la arquitectura, instalación y límites de vídeo](docs/VIDEO-PIPELINE.md).
 
 ## API de comunidad
 

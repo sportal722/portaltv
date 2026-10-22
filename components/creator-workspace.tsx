@@ -207,7 +207,7 @@ function ChannelForm({
           />
         </label>
         <label>
-          Miniatura: URL pública HTTPS
+          Portada cuando no hay directo: URL pública HTTPS
           <input
             type="url"
             maxLength={1000}
@@ -219,8 +219,9 @@ function ChannelForm({
           />
         </label>
         <small>
-          La imagen se carga desde esa dirección. Déjala vacía para usar la
-          portada de NEXORA.
+          Durante el directo se muestra una captura automática, actualizada cada
+          10 segundos. Esta imagen se usa como respaldo; déjala vacía para usar
+          la portada de NEXORA.
         </small>
         {error && (
           <p role="alert" className="api-error">

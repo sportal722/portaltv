@@ -16,6 +16,8 @@ Esta primera entrega limpia la demo y construye herramientas operativas para cre
 - [x] Alertas de seguidores configurables y fuente OBS con URL privada renovable/revocable, pruebas y deduplicación.
 - [x] Administración global separada y consulta de auditoría.
 - [x] Pruebas de autenticación, permisos, migración y persistencia.
+- [x] Conversión de compatibilidad a H.264/AAC y WebM VP9/Opus; selección por capacidad del navegador, reintentos y capturas reales cada 10 s.
+- [x] Procesamiento compartido por emisión, cuotas de recursos y entrega estática de segmentos con Caddy. Ver [límites y pruebas](VIDEO-PIPELINE.md).
 
 ## Fase siguiente: seguridad y lanzamiento controlado (P0)
 
@@ -24,7 +26,7 @@ Esta primera entrega limpia la demo y construye herramientas operativas para cre
 3. Privacidad, bloqueos, exportación/eliminación de datos y retención. Acordar términos, normas de comunidad y procedimiento de copyright con datos legales reales.
 4. Denuncias, revisión, apelaciones y soporte con permisos específicos; auditoría de todas las operaciones administrativas, no solo las incluidas en esta entrega.
 5. Copias fuera del VPS y restauración de prueba; objetivos RPO/RTO, monitorización de capacidad y notificación de incidentes.
-6. Diagnóstico del reproductor, recuperación ante fallos y pruebas reales en navegadores y dispositivos con H.264/AAC. Definir objetivo de latencia y detección de señal congelada.
+6. Ampliar diagnóstico del reproductor y recuperación ya implementada; realizar pruebas sostenidas en navegadores y dispositivos con H.264/AAC. Definir objetivo de latencia y detección de señal congelada.
 7. Pruebas de carga/abuso y límites de concurrencia en chat, cuentas e ingestión. El polling SQLite/SSE actual es una base para una comunidad pequeña, no una garantía de escala.
 
 ## Fase 2: contenido y comunidad (P1)
@@ -55,7 +57,7 @@ Esta primera entrega limpia la demo y construye herramientas operativas para cre
 
 ## Límites actuales y decisiones
 
-- Una sola calidad de origen HLS MPEG-TS; no hay selector ficticio de resolución, CDN ni transcodificación.
+- Conversión HLS hasta 720p y WebM hasta 480p para compatibilidad; no hay escalera ABR, selector manual de resolución ni CDN. Límite inicial de dos emisiones procesadas; aún falta carga sostenida de espectadores.
 - Un solo VPS y SQLite; sigue siendo un punto único de fallo. Los servicios Pterodactyl existentes permanecen separados de la aplicación, pero comparten máquina.
 - No se anuncian recuperación por correo, 2FA, VOD, monetización, estadísticas históricas ni soporte de gran escala como terminados.
 - Miniaturas por URL pública HTTPS; los navegadores contactan con el servidor de imágenes elegido por el creador. La carga propia y el proxy seguro de imágenes se implementarán con el almacenamiento de objetos.

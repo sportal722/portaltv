@@ -1,0 +1,45 @@
+# Merge with the existing Compose file. Paths relative to /opt/nexora.
+services:
+  web:
+    cpus: 1.5
+    volumes:
+      - /srv/nexora/media:/media:ro
+    environment:
+      VIDEO_MEDIA_URL: https://cloudcraft.mx/media
+      VIDEO_STATE_FILE: /media/state.json
+  video-worker:
+    build:
+      context: ./web
+      dockerfile: services/video-worker/Dockerfile
+    image: nexora-worker:local
+    container_name: nexora-video-worker
+    user: "1000:1000"
+    init: true
+    network_mode: host
+    restart: unless-stopped
+    read_only: true
+    env_file: ./config/worker.env
+    environment:
+      MEDIA_ROOT: /media
+      WORKER_API_URL: http://127.0.0.1:3100/api/video/jobs
+      WORKER_RTSP_URL: rtsp://127.0.0.1:8554
+      WORKER_MAX_STREAMS: "2"
+    volumes:
+      - /srv/nexora/media:/media
+    tmpfs:
+      - /tmp:rw,size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 3
+    mem_limit: 3g
+    pids_limit: 256
+    stop_grace_period: 20s
+    healthcheck:
+      test: [CMD, python3, -c, "import json,time; d=json.load(open('/media/state.json')); assert abs(time.time()*1000-d['updatedAt'])<20000"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}

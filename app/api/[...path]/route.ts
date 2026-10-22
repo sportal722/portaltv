@@ -32,6 +32,7 @@ import {
   revokeUserVideo,
   rotateKey,
   videoConfigured,
+  videoJobs,
   withVideo,
 } from "@/lib/video";
 import { handleCommunity, auditData } from "@/lib/community";
@@ -47,6 +48,8 @@ async function handle(request: NextRequest, context: Context) {
       await authorizeVideo(await body(request));
       return json({ allowed: true });
     }
+    if (route === "video/jobs" && method === "GET")
+      return json(await videoJobs(request.headers.get("authorization")));
     if (!["GET", "HEAD"].includes(method)) guardOrigin(request);
     if (route === "health" && method === "GET") {
       await prisma.$queryRaw`SELECT 1`;

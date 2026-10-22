@@ -15,6 +15,7 @@ export type Stream = {
   description: string;
   language: string;
   thumbnailUrl: string;
+  liveThumbnailUrl?: string | null;
   followers: number;
   image: string;
   avatar: number;

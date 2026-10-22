@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@prisma/client": "6.16.2",
+    "dashjs": "5.2.1",
     "hls.js": "^1.7.3",
     "lucide-react": "^0.468.0",
     "next": "^15.5.0",

@@ -1,3 +1,5 @@
+"use client";
+import { useState } from "react";
 import type { Stream } from "@/lib/types";
 export function Avatar({ name }: { name: string }) {
   return (
@@ -9,19 +11,29 @@ export function Avatar({ name }: { name: string }) {
 export function ChannelArt({
   stream,
 }: {
-  stream: Pick<Stream, "name" | "thumbnailUrl" | "category" | "status">;
+  stream: Pick<
+    Stream,
+    "name" | "thumbnailUrl" | "liveThumbnailUrl" | "category" | "status"
+  >;
 }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  const live = stream.status === "live" ? stream.liveThumbnailUrl : null;
+  const src = live && failed !== live ? live : stream.thumbnailUrl;
   return (
     <div className="channel-art">
-      {stream.thumbnailUrl ? (
+      {src && failed !== src ? (
         <img
-          key={stream.thumbnailUrl}
-          src={stream.thumbnailUrl}
-          alt={`Portada de ${stream.name}`}
+          key={src}
+          src={src}
+          alt={
+            live && src === live
+              ? `Captura del directo de ${stream.name}`
+              : `Portada de ${stream.name}`
+          }
+          loading="lazy"
+          decoding="async"
           referrerPolicy="no-referrer"
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
+          onError={() => setFailed(src)}
         />
       ) : (
         <div className="channel-art-mark" aria-hidden="true">

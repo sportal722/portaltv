@@ -27,7 +27,7 @@ export function playbackRecovery(notice: (message: string) => void) {
         recover();
       } else {
         notice(
-          "No se puede decodificar esta emisión. El emisor debe usar vídeo H.264 y audio AAC; prueba también otro navegador.",
+          "No se ha podido recuperar el vídeo. Pulsa Reintentar reproducción.",
         );
       }
     },
