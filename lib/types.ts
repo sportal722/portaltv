@@ -1,7 +1,7 @@
 export type User = {
   id: string;
   username: string;
-  role: "viewer" | "creator" | "admin";
+  role: "viewer" | "creator" | "moderator" | "admin";
   status: string;
 };
 export type Stream = {
@@ -23,6 +23,8 @@ export type Stream = {
   viewers: string;
   status: string;
   isDemo: boolean;
+  isSuspended?: boolean;
+  suspensionReason?: string;
 };
 export type Message = {
   id: number;

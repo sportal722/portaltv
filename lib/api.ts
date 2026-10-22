@@ -238,6 +238,7 @@ export async function findStream(slug: string) {
   if (
     !stream ||
     stream.isDemo ||
+    stream.isSuspended ||
     (
       await prisma.user.findUnique({
         where: { id: stream.ownerId },

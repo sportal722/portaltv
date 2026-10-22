@@ -9,17 +9,17 @@ Actualizado el **22 de octubre de 2026**. Plataforma desplegada en [cloudcraft.m
 ### Lo que ya tenemos
 
 - [x] Identidad NEXORA, diseño adaptable y catálogo limpio: sin canales, cuentas ni imágenes de demo; estados vacíos reales.
-- [x] Registro, inicio/cierre de sesión, cuentas de espectador/creador y permisos comprobados en backend.
+- [x] Registro, inicio/cierre de sesión, cuentas de espectador/creador, 2FA TOTP con QR/códigos de recuperación, cambio de contraseña y gestión de sesiones con cierre remoto.
 - [x] Emisión desde OBS por RTMPS, detección del estado real, reproducción HLS y claves privadas renovables/revocables.
 - [x] Canales con dirección legible (`/channel/usuario`), canales adicionales numerados y compatibilidad con enlaces antiguos.
 - [x] Reproductor con estados de carga/error/desconexión, reintentos limitados, conversión H.264/AAC y alternativa WebM VP9/Opus seleccionada según el navegador.
 - [x] Panel del creador: título, categoría, actividad, etiquetas, idioma, descripción, portada HTTPS de respaldo, vista previa, claves OBS y equipo. Capturas automáticas del directo cada 10 segundos.
 - [x] Chat público en tiempo real y chat privado del equipo, moderadores, borrado, sanciones temporales/permanentes, modo lento, solo seguidores y filtros de palabras/enlaces.
 - [x] Comandos persistentes con permisos y tiempos de espera; alertas de seguidores personalizables con fuente privada para OBS.
-- [x] Búsqueda, categorías, filtro de directos, seguir/dejar de seguir y conteos reales de seguidores, mensajes y moderadores.
-- [x] Panel global separado con gestión de estados de cuenta y auditoría de las acciones implementadas.
+- [x] Búsqueda, categorías, filtro de directos, seguir/dejar de seguir (sin auto-seguimiento) y conteos reales de seguidores, mensajes y moderadores.
+- [x] Centro global con resumen real, usuarios/roles, moderadores globales y por canal, suspensión de canales, denuncias, auditoría, anuncios y apertura/cierre de registros.
 - [x] HTTPS con Caddy, servicios de streaming separados de los paneles existentes, copias locales automáticas y comprobaciones de salud.
-- [x] Pruebas de API, permisos, migraciones, conservación de datos, emisión y reproducción; última ejecución local: **222 comprobaciones API + 196 de comunidad**.
+- [x] Pruebas de API, permisos, migraciones, conservación de datos, emisión y reproducción; pruebas específicas de vídeo, cuentas, roles y moderación global.
 
 **Seguimiento operativo:** comprobar estabilidad sostenida desde OBS y capacidad con espectadores reales. La entrega procesada usa segmentos publicados atómicamente desde Caddy, independientes de las sesiones HLS de MediaMTX; la recuperación del reproductor no puede compensar una conexión de entrada que deja de enviar señal.
 
@@ -27,9 +27,9 @@ Actualizado el **22 de octubre de 2026**. Plataforma desplegada en [cloudcraft.m
 
 La emisión, las cuentas básicas, el estudio y la moderación ya tienen una implementación funcional. Falta cerrar:
 
-- [ ] Verificación de correo, recuperación de contraseña, 2FA y gestión/cierre remoto de sesiones.
+- [ ] Verificación de correo y recuperación de contraseña por email; 2FA y cierre remoto de sesiones ya disponibles.
 - [ ] Privacidad, bloqueo de usuarios, exportación/eliminación de cuenta y política de retención de datos.
-- [ ] Denuncias, revisión, apelaciones, soporte con permisos propios y ampliación de la auditoría administrativa.
+- [ ] Apelaciones y soporte con permisos propios; denuncias/revisión y auditoría de las operaciones implementadas ya disponibles.
 - [ ] Diagnóstico del reproductor, detección de señal congelada, objetivo de latencia y pruebas sostenidas en navegadores/móviles reales.
 - [ ] Copias fuera del VPS, restauración completa probada y objetivos de recuperación RPO/RTO.
 - [ ] Monitorización de recursos/errores con avisos, protección adicional frente a bots/ataques y pruebas de carga con límites de capacidad.
@@ -100,10 +100,11 @@ El canal principal usa `/channel/usuario`, conservando guiones bajos del nombre 
 
 - `/`: catálogo real, búsqueda por canal/título/juego/etiquetas/idioma, categorías, seguidos y filtro en directo. Las listas vacías se muestran sin contenido inventado.
 - `/channel/[slug]`: enlace compartible, reproductor, seguimiento y chat ocultable.
+- `/account/security`: configurar 2FA, guardar/renovar códigos de recuperación, cambiar contraseña y cerrar sesiones propias. Ver [seguridad y administración](docs/ACCOUNT-SECURITY.md).
 - `/login`, `/register`: cuentas y sesiones. Un espectador puede activar sus herramientas de creador desde el estudio.
 - `/studio`: crear/editar el canal, portada mediante URL HTTPS, vista previa, datos de seguidores/mensajes, conexión OBS, equipo, reglas, sanciones, comandos y alertas.
 - `/moderation`: solo canales asignados, chat público y privado del equipo, borrado, sanciones y reglas.
-- `/admin`: administración global de estados de cuenta y auditoría. Asignación inicial exclusivamente desde una terminal autorizada: `npm run admin:promote -- correo-de-la-cuenta`.
+- `/admin`: centro global de usuarios, roles, canales, equipos, denuncias, anuncios, registro, servicios y auditoría. Asignación inicial desde terminal autorizada: `npm run admin:promote -- --username nombre` o por email. Los siguientes cambios de rol exigen contraseña y 2FA si está activada.
 - `/overlay/[slug]?token=…`: fuente transparente para OBS con alertas de seguidores. La URL se genera en el estudio; es privada, renovable y revocable. Solo permite leer alertas, no gestionar el canal ni publicar vídeo.
 - `/roadmap`: capacidades disponibles y próximas fases. El detalle técnico está en [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -135,7 +136,7 @@ El chat usa **Server-Sent Events** para enviar instantáneas al cliente al cambi
 
 `APP_URL` debe coincidir con el origen público. Escrituras: JSON y `Origin` exacto. Cookies `HttpOnly`, `SameSite=Lax` y `Secure` bajo HTTPS. Fuera de localhost se requiere HTTPS. El callback servidor a servidor de MediaMTX no usa cookies/Origin; valida sus propias credenciales.
 
-Variables en `.env.example`: `DATABASE_URL`, `APP_URL`, `MEDIAMTX_API_URL`, `MEDIAMTX_API_PASSWORD`, `VIDEO_INGEST_URL`, `VIDEO_HLS_URL`, `VIDEO_MEDIA_URL`, `VIDEO_STATE_FILE`. Nunca publiques `.env`, bases de datos, contraseñas ni certificados privados.
+Variables en `.env.example`: `DATABASE_URL`, `APP_URL`, `MEDIAMTX_API_URL`, `MEDIAMTX_API_PASSWORD`, `VIDEO_INGEST_URL`, `VIDEO_HLS_URL`, `VIDEO_MEDIA_URL`, `VIDEO_STATE_FILE`, `ACCOUNT_ENCRYPTION_KEY`. Nunca publiques `.env`, bases de datos, contraseñas ni certificados privados.
 
 Producción actual: https://cloudcraft.mx. OBS: servicio personalizado, servidor `rtmps://cloudcraft.mx:1936/live`, clave completa generada en **Estudio → Emisión y OBS**. Vídeo H.264/yuv420p, audio AAC estéreo, intervalo de fotogramas clave de 2 segundos. No es necesario renovar una clave existente al actualizar la plataforma.
 
@@ -180,3 +181,13 @@ El VPS usa `/opt/nexora` (Compose, código y configuración) y `/srv/nexora` (da
 Antes de una actualización: copia SQLite consistente, conserva imagen anterior, construye la nueva imagen, verifica la migración sobre una copia y aplica `prisma migrate deploy` antes de arrancar el nuevo web. No extraigas archivos sobre una entrega antigua: prepara un directorio nuevo para retirar también los recursos borrados. Comprueba salud, permisos, datos y SSE a través de Caddy. Si se revierte código tras esta migración, conserva el esquema añadido y evita ejecutar el antiguo seed, que recrearía el showcase.
 
 Las copias actuales son locales y automáticas. Falta una copia externa y un ensayo completo de restauración antes de declarar preparación para un lanzamiento amplio. Las métricas visibles son conteos reales de seguidores, mensajes conservados y moderadores; no se inventan cifras de audiencia.
+
+## Administración y seguridad de cuentas
+
+Los roles globales son espectador, creador, moderador y administrador. La moderación por canal se asigna por separado. Un moderador global puede revisar denuncias y moderar canales/cuentas ordinarias; no puede otorgar roles globales, cambiar configuración de plataforma ni acceder a claves OBS ajenas. Los cambios de rol revocan las sesiones del usuario afectado. No se permite cambiar el propio rol/estado ni retirar el último administrador activo.
+
+Suspender un canal lo oculta, rechaza nuevas publicaciones, revoca su clave y retira sus salidas procesadas. Al reactivarlo, el creador deberá generar una clave nueva. Las denuncias guardan motivo, descripción, estado y resolución; las apelaciones aún no están implementadas. Los anuncios son texto y pueden ocultarse dejándolos vacíos.
+
+2FA requiere una clave privada `ACCOUNT_ENCRYPTION_KEY` de 64 caracteres hexadecimales, conservada junto con las copias de recuperación. No se activa automáticamente para el usuario: debe escanear el QR y confirmar un código. No se guardan códigos de recuperación en claro y los secretos TOTP se cifran. La migración conserva las cookies existentes y elimina solo los seguimientos del propio creador y sus eventos asociados.
+
+Pruebas adicionales: `node scripts/test-totp.mjs`, `node scripts/test-account-admin.mjs` y `node scripts/test-media-output.mjs`. El estado de implementación se refleja también en `/roadmap`.

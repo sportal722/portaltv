@@ -114,6 +114,20 @@ export function AuthForm({
           minLength={12}
           maxLength={128}
         />
+        {mode === "login" && (
+          <>
+            <label htmlFor="auth-code">
+              Código 2FA o de recuperación (si lo activaste)
+            </label>
+            <input
+              id="auth-code"
+              name="code"
+              autoComplete="one-time-code"
+              maxLength={19}
+              spellCheck={false}
+            />
+          </>
+        )}
         {mode === "register" && (
           <>
             <label htmlFor="auth-role">¿Cómo quieres participar?</label>

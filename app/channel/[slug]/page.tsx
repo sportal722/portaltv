@@ -3,6 +3,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Heart, PanelRightClose, PanelRightOpen, Share2 } from "lucide-react";
+import { ReportChannel } from "@/components/report-channel";
 import { api } from "@/lib/client";
 import type { Stream, User } from "@/lib/types";
 import { SiteHeader } from "@/components/site-header";
@@ -91,7 +92,7 @@ export default function Channel({
                 <div className="stream-actions">
                   <button
                     className="primary-button"
-                    disabled={busy}
+                    disabled={busy || user?.id === stream.ownerId}
                     onClick={async () => {
                       if (!user) {
                         location.href = "/login";
@@ -116,7 +117,11 @@ export default function Channel({
                     }}
                   >
                     <Heart size={17} />
-                    {following ? "Siguiendo" : "Seguir"}
+                    {user?.id === stream.ownerId
+                      ? "Tu canal"
+                      : following
+                        ? "Siguiendo"
+                        : "Seguir"}
                   </button>
                   <button onClick={() => setChat(!chat)}>
                     {chat ? (
@@ -164,6 +169,7 @@ export default function Channel({
                     ))}
                 </div>
               </section>
+              <ReportChannel slug={stream.slug} />
             </div>
             {chat && <ChannelChat slug={slug} canModerate={staff} />}
           </>

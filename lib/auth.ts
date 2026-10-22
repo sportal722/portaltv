@@ -4,13 +4,13 @@ import { prisma } from "./prisma";
 import { ApiError, appOrigin, publicUserSelect } from "./api";
 export const cookieName = "nexora_session";
 const duration = 7 * 24 * 60 * 60;
-function tokenHash(request: NextRequest) {
+export function sessionTokenHash(request: NextRequest) {
   const token = request.cookies.get(cookieName)?.value;
   if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
   return createHash("sha256").update(token).digest("hex");
 }
 export async function currentUser(request: NextRequest) {
-  const hash = tokenHash(request);
+  const hash = sessionTokenHash(request);
   if (!hash) return null;
   const session = await prisma.session.findUnique({
     where: { tokenHash: hash },
@@ -53,7 +53,7 @@ function cookieOptions(request: NextRequest) {
   };
 }
 export async function revokeSession(request: NextRequest) {
-  const hash = tokenHash(request);
+  const hash = sessionTokenHash(request);
   if (hash) await prisma.session.deleteMany({ where: { tokenHash: hash } });
 }
 export async function startSession(
@@ -71,6 +71,7 @@ export async function startSession(
     data: {
       tokenHash: createHash("sha256").update(token).digest("hex"),
       userId,
+      userAgent: (request.headers.get("user-agent") || "Dispositivo sin identificar").slice(0, 160),
       expiresAt: new Date(Date.now() + duration * 1000),
     },
   });

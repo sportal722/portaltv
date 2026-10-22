@@ -35,6 +35,11 @@ import {
   videoJobs,
   withVideo,
 } from "@/lib/video";
+import {
+  handleAccountSecurity,
+  verifySecondFactor,
+} from "@/lib/account-security";
+import { handlePlatform, platformSettings } from "@/lib/platform";
 import { handleCommunity, auditData } from "@/lib/community";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,6 +89,12 @@ async function handle(request: NextRequest, context: Context) {
       const emailKey = createHash("sha256").update(email).digest("hex");
       await rateLimit(`auth:${route}:${emailKey}`, 8, 900);
       if (route === "auth/register") {
+        if (!(await platformSettings()).registrationOpen)
+          throw new ApiError(
+            403,
+            "REGISTRATION_CLOSED",
+            "El registro está cerrado temporalmente.",
+          );
         await rateLimit("register:global", 60, 3600);
         const username = text(data, "username", 3, 24);
         if (!/^[a-zA-Z0-9_]{3,24}$/.test(username))
@@ -119,6 +130,7 @@ async function handle(request: NextRequest, context: Context) {
           "INVALID_CREDENTIALS",
           "Email o contraseña incorrectos.",
         );
+      await verifySecondFactor(user.id, data.code);
       return await startSession(
         request,
         json({
@@ -134,6 +146,10 @@ async function handle(request: NextRequest, context: Context) {
       await revokeSession(request);
       return clearSessionCookie(request, json({ loggedOut: true }));
     }
+    const platform = await handlePlatform(request, path);
+    if (platform) return platform;
+    const security = await handleAccountSecurity(request, path);
+    if (security) return security;
     const community = await handleCommunity(request, path);
     if (community) return community;
     if (route === "streams" && method === "GET") {
@@ -150,6 +166,7 @@ async function handle(request: NextRequest, context: Context) {
       const result = await prisma.stream.findMany({
         where: {
           isDemo: false,
+          isSuspended: false,
           owner: { status: { not: "banned" } },
           ...(user ? { ownerId: user.id } : {}),
           ...(category ? { category } : {}),
@@ -170,7 +187,11 @@ async function handle(request: NextRequest, context: Context) {
       return json(await withVideo(result));
     }
     if (route === "streams" && method === "POST") {
-      const user = await requireUser(request, ["creator", "admin"]);
+      const user = await requireUser(request, [
+        "creator",
+        "admin",
+        "moderator",
+      ]);
       await rateLimit(`streams:${user.id}`, 10, 3600);
       if ((await prisma.stream.count({ where: { ownerId: user.id } })) >= 5)
         throw new ApiError(
@@ -203,7 +224,11 @@ async function handle(request: NextRequest, context: Context) {
       const stream = await findStream(path[1]);
       if (method === "GET") return json((await withVideo([stream]))[0]);
       if (method === "PATCH") {
-        const user = await requireUser(request, ["creator", "admin"]);
+        const user = await requireUser(request, [
+          "creator",
+          "admin",
+          "moderator",
+        ]);
         if (stream.ownerId !== user.id && user.role !== "admin")
           throw new ApiError(
             403,
@@ -244,7 +269,11 @@ async function handle(request: NextRequest, context: Context) {
       return json(await playback(await findStream(path[1])));
     }
     if (path[0] === "streams" && path.length === 3 && path[2] === "key") {
-      const user = await requireUser(request, ["creator", "admin"]);
+      const user = await requireUser(request, [
+        "creator",
+        "admin",
+        "moderator",
+      ]);
       const stream = await findStream(path[1]);
       if (stream.ownerId !== user.id || stream.isDemo)
         throw new ApiError(
@@ -275,13 +304,29 @@ async function handle(request: NextRequest, context: Context) {
         );
       if (method === "POST" || method === "DELETE") {
         const streamId = positiveId((await body(request)).streamId);
+        const channel = await prisma.stream.findUnique({
+          where: { id: streamId },
+          select: {
+            ownerId: true,
+            isDemo: true,
+            isSuspended: true,
+            owner: { select: { status: true } },
+          },
+        });
         if (
-          !(await prisma.stream.findUnique({
-            where: { id: streamId },
-            select: { id: true },
-          }))
+          !channel ||
+          (method === "POST" &&
+            (channel.isDemo ||
+              channel.isSuspended ||
+              channel.owner.status === "banned"))
         )
           throw new ApiError(404, "NOT_FOUND", "No se encontró el canal.");
+        if (method === "POST" && channel.ownerId === user.id)
+          throw new ApiError(
+            400,
+            "SELF_FOLLOW",
+            "No puedes seguir tu propio canal.",
+          );
         await rateLimit(`follow:${user.id}`, 30, 60);
         await prisma.$transaction(async (tx) => {
           const existing = await tx.follow.findUnique({
@@ -310,13 +355,38 @@ async function handle(request: NextRequest, context: Context) {
       }
     }
     if (route === "admin/users") {
-      const admin = await requireUser(request, ["admin"]);
+      const admin = await requireUser(request, ["admin", "moderator"]);
+      if (admin.status !== "active")
+        throw new ApiError(
+          403,
+          "FORBIDDEN",
+          "Acceso de administración inactivo.",
+        );
       if (method === "GET")
         return json(
           await prisma.user.findMany({
+            where: request.nextUrl.searchParams.get("q")
+              ? {
+                  username: {
+                    contains: request.nextUrl.searchParams
+                      .get("q")!
+                      .slice(0, 100),
+                  },
+                }
+              : {},
             select: { ...publicUserSelect, createdAt: true },
             orderBy: { createdAt: "desc" },
-            take: 100,
+            take: 50,
+            skip:
+              Math.floor(
+                Math.min(
+                  1000,
+                  Math.max(
+                    0,
+                    Number(request.nextUrl.searchParams.get("page")) || 0,
+                  ),
+                ),
+              ) * 50,
           }),
         );
       if (method === "PATCH") {
@@ -346,6 +416,32 @@ async function handle(request: NextRequest, context: Context) {
         )
           throw new ApiError(404, "NOT_FOUND", "Usuario no encontrado.");
         const user = await prisma.$transaction(async (tx) => {
+          const actor = await tx.user.findUnique({ where: { id: admin.id } });
+          const target = await tx.user.findUniqueOrThrow({ where: { id } });
+          if (
+            !actor ||
+            actor.status !== "active" ||
+            !["admin", "moderator"].includes(actor.role) ||
+            (actor.role !== "admin" &&
+              ["admin", "moderator"].includes(target.role))
+          )
+            throw new ApiError(
+              403,
+              "FORBIDDEN",
+              "No puedes modificar esa cuenta.",
+            );
+          if (
+            target.role === "admin" &&
+            status !== "active" &&
+            (await tx.user.count({
+              where: { role: "admin", status: "active" },
+            })) <= 1
+          )
+            throw new ApiError(
+              409,
+              "LAST_ADMIN",
+              "Debe existir al menos un administrador activo.",
+            );
           const result = await tx.user.update({
             where: { id },
             data: { status },

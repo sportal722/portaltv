@@ -101,7 +101,8 @@ export async function withVideo(streams: Channel[]) {
   const outputs = await mediaOutputs();
   return result.map((s) => {
     const credential = credentials.find((c) => c.streamId === s.id);
-    const online = !s.isDemo && !!credential && live.has(credential.path);
+    const online =
+      !s.isDemo && !s.isSuspended && !!credential && live.has(credential.path);
     return {
       ...s,
       status: online ? "live" : "offline",
@@ -147,6 +148,7 @@ export async function authorizeVideo(data: Record<string, unknown>) {
     if (
       credential &&
       !credential.stream.isDemo &&
+      !credential.stream.isSuspended &&
       credential.stream.owner.status !== "banned"
     ) {
       if (data.action === "read" && data.protocol === "hls") return;
@@ -249,7 +251,7 @@ export async function revokeUserVideo(ownerId: string) {
   );
 }
 export async function playback(stream: Channel) {
-  if (stream.isDemo || !videoConfigured())
+  if (stream.isDemo || stream.isSuspended || !videoConfigured())
     return { status: "offline", url: null };
   const credential = await prisma.streamCredential.findUnique({
     where: { streamId: stream.id },
@@ -285,7 +287,13 @@ export async function videoJobs(authorization: string | null) {
   )
     throw new ApiError(403, "VIDEO_FORBIDDEN", "Acceso de vídeo denegado.");
   const credentials = await prisma.streamCredential.findMany({
-    where: { stream: { isDemo: false, owner: { status: { not: "banned" } } } },
+    where: {
+      stream: {
+        isDemo: false,
+        isSuspended: false,
+        owner: { status: { not: "banned" } },
+      },
+    },
     select: { path: true },
   });
   const paths = new Set(

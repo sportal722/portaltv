@@ -9,6 +9,10 @@ model User {
   id String @id @default(cuid())
   email String @unique
   username String @unique
+  twoFactorSecret String?
+  twoFactorLastCounter Int @default(-1)
+  recoveryCodes String @default("[]")
+  twoFactorSetup TwoFactorSetup?
   passwordHash String
   role String @default("viewer")
   status String @default("active")
@@ -21,6 +25,9 @@ model User {
   bans ChannelBan[]
 }
 model Session {
+  id String @unique @default(cuid())
+  createdAt DateTime @default(now())
+  userAgent String @default("")
   tokenHash String @id
   userId String
   expiresAt DateTime
@@ -39,6 +46,8 @@ model Stream {
   image String @default("channel")
   avatar Int @default(0)
   tag String @default("Comunidad")
+  isSuspended Boolean @default(false)
+  suspensionReason String @default("")
   isDemo Boolean @default(false)
   description String @default("")
   language String @default("Español")
@@ -165,4 +174,29 @@ model AuditEvent {
   createdAt DateTime @default(now())
   stream Stream? @relation(fields: [streamId], references: [id], onDelete: Cascade)
   @@index([streamId, id])
+}
+
+model TwoFactorSetup {
+  userId String @id
+  secret String
+  expiresAt DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PlatformSettings {
+  id String @id @default("main")
+  registrationOpen Boolean @default(true)
+  announcement String @default("")
+}
+model Report {
+  id Int @id @default(autoincrement())
+  reporterId String
+  streamId Int
+  reason String
+  description String
+  status String @default("open")
+  resolution String @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, id])
 }

@@ -44,3 +44,18 @@ export function outputUrls(path: string, output?: Output) {
         : null,
   };
 }
+
+export async function mediaHealth() {
+  if (!processedVideoConfigured()) return "not_configured";
+  try {
+    const data = JSON.parse(
+      await readFile(process.env.VIDEO_STATE_FILE!, "utf8"),
+    );
+    return Number.isFinite(data.updatedAt) &&
+      Math.abs(Date.now() - data.updatedAt) < 15000
+      ? "healthy"
+      : "unavailable";
+  } catch {
+    return "unavailable";
+  }
+}

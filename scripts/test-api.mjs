@@ -555,6 +555,7 @@ try {
     method: "POST",
     who: creator,
     data: { streamId: channel.id },
+    status: 400,
   });
   await request("follows", {
     method: "DELETE",

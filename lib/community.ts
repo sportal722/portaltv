@@ -21,7 +21,7 @@ export async function canModerate(user: Account | null, stream: Channel) {
     !!user &&
     user.status === "active" &&
     (user.id === stream.ownerId ||
-      user.role === "admin" ||
+      ["admin", "moderator"].includes(user.role) ||
       !!(await prisma.channelModerator.findUnique({
         where: { streamId_userId: { streamId: stream.id, userId: user.id } },
       })))
@@ -138,7 +138,8 @@ export async function chatSnapshot(
         ? "streamer"
         : m.user.role === "admin"
           ? "admin"
-          : mods.some((x) => x.userId === m.userId)
+          : m.user.role === "moderator" ||
+              mods.some((x) => x.userId === m.userId)
             ? "moderator"
             : "viewer",
   }));
@@ -166,7 +167,7 @@ export async function handleCommunity(request: NextRequest, path: string[]) {
         OR: [
           { ownerId: user.id },
           { moderators: { some: { userId: user.id } } },
-          ...(user.role === "admin" ? [{}] : []),
+          ...(["admin", "moderator"].includes(user.role) ? [{}] : []),
         ],
       },
       include: streamInclude,
@@ -175,7 +176,7 @@ export async function handleCommunity(request: NextRequest, path: string[]) {
     return json(await withVideo(streams));
   }
   if (route === "admin/audit" && method === "GET") {
-    await requireUser(request, ["admin"]);
+    await requireUser(request, ["admin", "moderator"]);
     return json(
       await prisma.auditEvent.findMany({ orderBy: { id: "desc" }, take: 100 }),
     );
@@ -260,7 +261,7 @@ export async function handleCommunity(request: NextRequest, path: string[]) {
           "NOT_FOUND",
           "No se encontró una cuenta activa con ese nombre exacto.",
         );
-      if (target.id === user.id || target.role === "admin")
+      if (target.id === user.id || ["admin", "moderator"].includes(target.role))
         throw new ApiError(
           400,
           "VALIDATION",
@@ -304,7 +305,7 @@ export async function handleCommunity(request: NextRequest, path: string[]) {
         throw new ApiError(404, "NOT_FOUND", "Usuario no encontrado.");
       if (
         target.id === stream.ownerId ||
-        target.role === "admin" ||
+        ["admin", "moderator"].includes(target.role) ||
         (await canModerate(target, stream))
       )
         throw new ApiError(

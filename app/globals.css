@@ -1413,3 +1413,25 @@ svg {
   flex-direction: row;
   justify-content: flex-start;
 }
+
+.security-page { max-width: 960px; margin: 0 auto; padding: 32px 20px; }
+.security-page .panel { margin: 24px 0; padding: 24px; }
+.security-page .profile-form { max-width: 600px; }
+.two-factor-setup, .recovery-codes { display: grid; gap: 12px; margin-top: 16px; }
+.two-factor-setup code, .session-list p { overflow-wrap: anywhere; }
+.two-factor-setup img { max-width: 100%; height: auto; }
+.recovery-codes pre { white-space: pre-wrap; }
+.security-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.session-list article { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.admin-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:24px 0; }
+.admin-tabs button[aria-pressed=true] { background:var(--violet); color:#111; }
+.admin-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
+.admin-metrics article { display:flex; flex-direction:column; padding:20px; gap:8px; }
+.admin-metrics strong { font-size:2rem; }
+.admin-page .panel { padding:20px; margin:20px 0; }
+.admin-search { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; margin:20px 0; }
+.admin-page input,.admin-page textarea,.admin-page select { max-width:100%; }
+.admin-page .admin-list article { flex-wrap:wrap; overflow-wrap:anywhere; }
+.report-card { padding:16px 0; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
+.platform-announcement { padding:12px 24px; background:#29203e; text-align:center; overflow-wrap:anywhere; }
+.report-channel { margin:16px 0; }

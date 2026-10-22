@@ -1,5 +1,5 @@
 """Actual MediaMTX + web + FFmpeg integration. Isolated synthetic accounts/database."""
-import base64, hashlib, http.server, json, os, pathlib, secrets, shutil, socket, subprocess, tempfile, threading, time, urllib.request, urllib.error
+import base64, hashlib, http.server, json, os, pathlib, secrets, shutil, socket, sqlite3, subprocess, tempfile, threading, time, urllib.request, urllib.error
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FOLDER = pathlib.Path(tempfile.mkdtemp(prefix='nexora-compat-'))
 children=[]; checks=0
@@ -120,6 +120,19 @@ try:
     for url in [silentdata['url'],silentdata['dashUrl']]:
         result=subprocess.run(['ffmpeg','-v','error','-i',url,'-t','2','-f','null','-'],capture_output=True,timeout=25)
         check(result.returncode==0 and not result.stderr,'Video-only stream decode')
+    adminstream,admincookie,_=account('compat_admin')
+    with sqlite3.connect(FOLDER/'test.db') as db:
+        db.execute("UPDATE User SET role='admin' WHERE username='compat_admin'")
+    secondpath='live/'+secondkey['streamKey'].split('?')[0]
+    req('admin/channels','PATCH',{'id':second['id'],'suspended':True,'reason':'Synthetic moderation test'},cookie=admincookie)
+    wait(lambda:not (FOLDER/'media/public'/secondpath.split('/')[1]).exists(),'Suspension removes processed outputs')
+    check(not any(job['path']==secondpath for job in req('video/jobs',auth='Bearer '+token)[0]),'Suspended jobs removed')
+    req('video/auth','POST',{'action':'publish','protocol':'rtmp','path':secondpath,'query':secondkey['streamKey'].partition('?')[2]},status=403)
+    req('admin/channels','PATCH',{'id':second['id'],'suspended':False,'reason':'Synthetic restore test'},cookie=admincookie)
+    req('video/auth','POST',{'action':'publish','protocol':'rtmp','path':secondpath,'query':secondkey['streamKey'].partition('?')[2]},status=403)
+    newkey,_=req('streams/'+second['slug']+'/key','POST',cookie=secondcookie)
+    publish(newkey,audio=False)
+    wait(lambda:req('streams/'+second['slug']+'/playback')[0].get('dashUrl'),'Restored channel requires new key and works')
     # Worker death/stale state must never be announced as ready indefinitely.
     stop(worker)
     wait(lambda:req('streams/'+second['slug']+'/playback')[0]['status']=='processing','Worker unavailable surfaced')

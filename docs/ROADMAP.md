@@ -14,7 +14,9 @@ Esta primera entrega limpia la demo y construye herramientas operativas para cre
 - [x] Modo lento, solo seguidores, filtros, sanciones temporales/permanentes y registro de acciones.
 - [x] Comandos persistentes, espera compartida, plantilla de usuario y permisos del equipo.
 - [x] Alertas de seguidores configurables y fuente OBS con URL privada renovable/revocable, pruebas y deduplicación.
-- [x] Administración global separada y consulta de auditoría.
+- [x] Centro global: usuarios/roles, equipos, suspensión de canales, denuncias/resoluciones, ajustes de registro/anuncios y auditoría.
+- [x] 2FA TOTP con QR, secretos cifrados y códigos de recuperación de un uso; sesiones con cierre remoto y cambio de contraseña.
+- [x] Auto-seguimiento prohibido en API/interfaz y limpieza de los registros propios existentes.
 - [x] Pruebas de autenticación, permisos, migración y persistencia.
 - [x] Conversión de compatibilidad a H.264/AAC y WebM VP9/Opus; selección por capacidad del navegador, reintentos y capturas reales cada 10 s.
 - [x] Procesamiento compartido por emisión, cuotas de recursos y entrega estática de segmentos con Caddy. Ver [límites y pruebas](VIDEO-PIPELINE.md).
@@ -22,9 +24,9 @@ Esta primera entrega limpia la demo y construye herramientas operativas para cre
 ## Fase siguiente: seguridad y lanzamiento controlado (P0)
 
 1. Servicio de correo real: verificación, recuperación, límites, tokens de un solo uso y revocación. Elegir proveedor/dominio remitente; nunca simular envíos exitosos.
-2. 2FA TOTP, códigos de recuperación y protección reforzada para administradores; lista de sesiones y cierre remoto.
+2. Ampliar protección del equipo: 2FA, códigos de recuperación y gestión de sesiones ya disponibles; quedan políticas de 2FA obligatoria por organización y alertas de accesos.
 3. Privacidad, bloqueos, exportación/eliminación de datos y retención. Acordar términos, normas de comunidad y procedimiento de copyright con datos legales reales.
-4. Denuncias, revisión, apelaciones y soporte con permisos específicos; auditoría de todas las operaciones administrativas, no solo las incluidas en esta entrega.
+4. Apelaciones y soporte con permisos específicos; ampliar auditoría a futuras operaciones. Ya existen denuncias/revisión y registro de las acciones de cuenta/administración implementadas.
 5. Copias fuera del VPS y restauración de prueba; objetivos RPO/RTO, monitorización de capacidad y notificación de incidentes.
 6. Ampliar diagnóstico del reproductor y recuperación ya implementada; realizar pruebas sostenidas en navegadores y dispositivos con H.264/AAC. Definir objetivo de latencia y detección de señal congelada.
 7. Pruebas de carga/abuso y límites de concurrencia en chat, cuentas e ingestión. El polling SQLite/SSE actual es una base para una comunidad pequeña, no una garantía de escala.
@@ -59,7 +61,7 @@ Esta primera entrega limpia la demo y construye herramientas operativas para cre
 
 - Conversión HLS hasta 720p y WebM hasta 480p para compatibilidad; no hay escalera ABR, selector manual de resolución ni CDN. Límite inicial de dos emisiones procesadas; aún falta carga sostenida de espectadores.
 - Un solo VPS y SQLite; sigue siendo un punto único de fallo. Los servicios Pterodactyl existentes permanecen separados de la aplicación, pero comparten máquina.
-- No se anuncian recuperación por correo, 2FA, VOD, monetización, estadísticas históricas ni soporte de gran escala como terminados.
+- No se anuncian recuperación por correo, VOD, monetización, estadísticas históricas ni soporte de gran escala como terminados.
 - Miniaturas por URL pública HTTPS; los navegadores contactan con el servidor de imágenes elegido por el creador. La carga propia y el proxy seguro de imágenes se implementarán con el almacenamiento de objetos.
 - Mensajes y auditoría persisten; definir retención y exportación antes de ampliar el lanzamiento.
 - Las alertas actuales cubren seguimiento y pruebas. Suscripciones/propinas se conectarán solo después de implementar esos eventos reales.

@@ -18,10 +18,14 @@ export default function Roadmap() {
         <section className="panel">
           <h2>Disponible · Emisión y comunidad</h2>
           <ul>
-            <li>Registro, sesiones y emisión con OBS mediante RTMPS.</li>
+            <li>
+              Registro, 2FA con códigos de recuperación, gestión de sesiones y
+              emisión con OBS mediante RTMPS.
+            </li>
             <li>
               Canales reales, búsqueda, categorías, seguimiento y reproductor
-              HLS.
+              HLS y WebM con conversión de compatibilidad y miniaturas
+              automáticas.
             </li>
             <li>
               Estudio para editar título, actividad, idioma, etiquetas,
@@ -37,21 +41,23 @@ export default function Roadmap() {
               borrado y sanciones.
             </li>
             <li>Comandos personalizados y alertas de seguidores para OBS.</li>
-            <li>Registro de acciones de moderación y administración.</li>
+            <li>
+              Centro global de usuarios, roles, moderadores, canales, denuncias,
+              anuncios y auditoría.
+            </li>
           </ul>
         </section>
         <section className="panel">
           <h2>Siguiente · Seguridad y preparación de lanzamiento</h2>
           <ul>
             <li>
-              Verificación de correo, recuperación de contraseña, 2FA y gestión
-              de dispositivos.
+              Verificación de correo y recuperación de contraseña por email.
             </li>
             <li>
               Exportación y eliminación de datos, privacidad y normas de
               comunidad.
             </li>
-            <li>Denuncias, apelaciones y soporte.</li>
+            <li>Apelaciones y centro de soporte.</li>
             <li>
               Copias fuera del servidor, restauración probada, límites de
               capacidad y alertas de infraestructura.
