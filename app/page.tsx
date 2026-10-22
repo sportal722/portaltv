@@ -1237,9 +1237,8 @@ export default function Page() {
               </span>
             </div>
             <small className="modal-footnote">
-              Cuentas, canales, favoritos y chat conectados al backend local.
-              Los canales marcados como ejemplo no emiten vídeo. La conexión con
-              OBS y el servidor de vídeo está pendiente.
+              Crea tu canal, conecta OBS y comparte tus directos con la comunidad.
+              Los canales marcados como ejemplo no emiten vídeo.
             </small>
           </>
         )}
