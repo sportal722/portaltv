@@ -138,9 +138,9 @@ En el repositorio de streaming, `npm run test:local` verifica ambos proyectos co
 
 ## Preparación para uso público
 
-**El backend y el vídeo local están integrados.** Los ocho canales del seed están marcados como ejemplos, sin emisión y con cero espectadores; sus cuentas tienen contraseñas aleatorias descartadas, por lo que no son accesos de prueba públicos. Los clips no se simulan.
+**El backend y el vídeo están integrados.** El despliegue inicial está disponible en [cloudcraft.mx](https://cloudcraft.mx), con HTTPS y emisión RTMPS; usa Mi canal para obtener tu clave. Los ocho canales del seed están marcados como ejemplos, sin emisión y con cero espectadores; sus cuentas tienen contraseñas aleatorias descartadas, por lo que no son accesos de prueba públicos. Los clips no se simulan.
 
-Pendiente para un servicio público: VPS alcanzable desde OBS, dominios, HTTPS/RTMPS y firewall, transcodificación/CDN para escalar, WebRTC/WHIP, almacenamiento de avatares/banners/clips, integraciones y secretos cifrados, verificación de email, recuperación de contraseña, PostgreSQL y migraciones para producción, transporte de chat SSE/WebSockets, paginación para grandes catálogos, límites distribuidos, monitorización y copias de seguridad con restauración probada. No hay pagos ni proveedores externos conectados. No desplegar esta versión como una plataforma de streaming lista para producción.
+Para ampliar el despliegue inicial: transcodificación/CDN para escalar, WebRTC/WHIP, almacenamiento de avatares/banners/clips, integraciones y secretos cifrados, verificación de email, recuperación de contraseña, PostgreSQL y migraciones para producción, transporte de chat SSE/WebSockets, paginación para grandes catálogos, límites distribuidos, monitorización y copias de seguridad con restauración probada. No hay pagos ni proveedores externos conectados. No desplegar esta versión como una plataforma de streaming lista para producción.
 
 `continuar.md` conserva los requisitos de fases posteriores. Los modelos y rutas de esta implementación están en `prisma/`, `lib/` y `app/api/[...path]/route.ts`.
 

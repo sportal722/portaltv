@@ -716,7 +716,9 @@ export default function Page() {
                 )}
               </div>
               <div className="hero-bottom">
-                <span className="demo-label">VÍDEO PENDIENTE DE CONECTAR</span>
+                <span className="demo-label">
+                  {feature.isDemo ? "CANAL DE EJEMPLO" : feature.status === "live" ? "EMISIÓN EN DIRECTO" : feature.status === "unavailable" ? "EMISIÓN NO DISPONIBLE" : "ESPERANDO SEÑAL"}
+                </span>
                 <div className="hero-controls">
                   <button
                     className="hero-arrow"
