@@ -43,6 +43,7 @@ model Stream {
   owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   follows Follow[]
   messages ChatMessage[]
+  credential StreamCredential?
   @@index([ownerId])
   @@index([category])
 }
@@ -71,4 +72,12 @@ model RateLimit {
   count Int
   expiresAt DateTime
   @@index([expiresAt])
+}
+
+model StreamCredential {
+  streamId Int @id
+  path String @unique
+  keyHash String
+  updatedAt DateTime @updatedAt
+  stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
 }

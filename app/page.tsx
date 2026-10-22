@@ -36,6 +36,8 @@ import {
 import { api, RequestError } from "@/lib/client";
 import type { Stream, User, Message } from "@/lib/types";
 import { categories } from "@/lib/catalog";
+import { LivePlayer } from "@/components/live-player";
+import { StreamConnection } from "@/components/stream-connection";
 import { AuthForm } from "@/components/auth-form";
 const filters = [
   { name: "Para ti", icon: Sparkles },
@@ -140,6 +142,20 @@ export default function Page() {
     }
     void load();
     return () => controller.abort();
+  }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    let pending = false;
+    const timer = setInterval(async () => {
+      if (pending) return;
+      pending = true;
+      try {
+        const items = await api<Stream[]>("streams", { signal: controller.signal });
+        if (!controller.signal.aborted) setStreams(items);
+      } catch { /* The player reports video connectivity separately. */ }
+      finally { pending = false; }
+    }, 10000);
+    return () => { controller.abort(); clearInterval(timer); };
   }, []);
   useEffect(() => {
     if (!selected) return;
@@ -626,7 +642,7 @@ export default function Page() {
               <div className="hero-content">
                 <div className="hero-top">
                   <span className="live-badge">
-                    <i /> {feature.isDemo ? "EJEMPLO" : "SIN EMISIÓN"}
+                    <i /> {feature.isDemo ? "EJEMPLO" : feature.status === "live" ? "EN DIRECTO" : feature.status === "unavailable" ? "SIN CONEXIÓN" : "SIN EMISIÓN"}
                   </span>
                   <span className="featured-label">
                     <Sparkles size={13} /> DESTACADO DE HOY
@@ -794,7 +810,7 @@ export default function Page() {
                         </>
                       ) : (
                         <>
-                          <i /> {s.isDemo ? "EJEMPLO" : "SIN EMISIÓN"}
+                          <i /> {s.isDemo ? "EJEMPLO" : s.status === "live" ? "EN DIRECTO" : s.status === "unavailable" ? "SIN CONEXIÓN" : "SIN EMISIÓN"}
                         </>
                       )}
                     </span>
@@ -985,25 +1001,7 @@ export default function Page() {
           <>
             <div className="player-layout">
               <div className="player-main">
-                <div
-                  className="demo-player"
-                  style={{
-                    backgroundImage: `url('/images/${selected.image}-scene.jpg')`,
-                  }}
-                >
-                  <span className="demo-player-badge">
-                    {selected.isDemo ? "CANAL DE EJEMPLO" : "CANAL SIN EMISIÓN"}
-                  </span>
-                  <div className="player-notice">
-                    <Radio size={36} />
-                    <h2>Estás en el canal de {selected.name}</h2>
-                    <p>
-                      Este canal todavía no está emitiendo.
-                      <br />
-                      La emisión de vídeo todavía no está conectada.
-                    </p>
-                  </div>
-                </div>
+                <LivePlayer key={selected.slug} stream={selected} />
                 <div className="player-details">
                   <Avatar n={selected.avatar} live />
                   <div>
@@ -1140,7 +1138,7 @@ export default function Page() {
               </h2>
               <p>
                 {creatorSaved
-                  ? "Tu canal se ha guardado en la base de datos. Está sin emisión hasta conectar un servidor de vídeo."
+                  ? "Tu canal está guardado. Configura OBS con los datos de emisión que aparecen debajo."
                   : "Gestiona el título y la categoría de tu canal."}
               </p>
               {apiError && (
@@ -1201,17 +1199,14 @@ export default function Page() {
                       </option>
                     ))}
                   </select>
-                  <div className="connection-status">
-                    <span />
-                    Servidor de vídeo pendiente. No se puede iniciar una
-                    emisión.
-                  </div>
+
                   <button className="primary-button" disabled={busy}>
                     {busy ? "Guardando…" : "Guardar canal"}
                     <ArrowRight size={17} />
                   </button>
                 </form>
               )}
+              {myStream && !creatorLoading && <StreamConnection key={myStream.slug} slug={myStream.slug} />}
             </>
           )
         ) : (

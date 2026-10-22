@@ -38,7 +38,7 @@ Fuera de localhost, `APP_URL` debe usar HTTPS. Las cookies llevan `Secure` cuand
 2. Crea una cuenta de espectador o de creador; contraseña de 12 a 128 caracteres.
 3. Sigue canales con el corazón y consulta **Siguiendo**. Los favoritos pertenecen a la cuenta y persisten en SQLite.
 4. Abre un canal para consultar y enviar mensajes. El chat carga el historial y consulta nuevos mensajes cada tres segundos.
-5. Con una cuenta de creador, abre **Mi canal** para crear o editar tu canal (título, categoría, juego/tema y portada). El canal queda **sin emisión** hasta integrar vídeo.
+5. Con una cuenta de creador, abre **Mi canal** para crear o editar tu canal (título, categoría, juego/tema y portada). Conecta OBS usando las instrucciones de vídeo de abajo; el canal queda sin emisión hasta recibir una señal válida.
 6. Cierra sesión desde Mi perfil. También existe `/login`.
 
 Los antiguos perfiles, favoritos y borradores de localStorage ya no se utilizan ni se importan como cuentas reales. No se guardan contraseñas ni tokens en localStorage.
@@ -55,7 +55,7 @@ Después abre `/admin` para silenciar, suspender o reactivar usuarios. No hay co
 
 ## APIs locales
 
-Todas las respuestas usan `{ "data": ... }` o `{ "error": { "code": "...", "message": "..." } }`. Las peticiones de escritura requieren `Content-Type: application/json` si llevan cuerpo y una cabecera `Origin` que coincida con `APP_URL`, también desde curl u otros clientes locales. Las rutas privadas requieren la cookie de sesión emitida al registrar o iniciar sesión.
+Todas las respuestas usan `{ "data": ... }` o `{ "error": { "code": "...", "message": "..." } }`. Salvo el callback de autenticación de MediaMTX, las peticiones de escritura requieren `Content-Type: application/json` si llevan cuerpo y una cabecera `Origin` que coincida con `APP_URL`, también desde curl u otros clientes locales. Las rutas privadas requieren la cookie de sesión emitida al registrar o iniciar sesión.
 
 | Método y ruta                          | Uso / permisos                                                                     |
 | -------------------------------------- | ---------------------------------------------------------------------------------- |
@@ -68,6 +68,11 @@ Todas las respuestas usan `{ "data": ... }` o `{ "error": { "code": "...", "mess
 | `POST /api/streams`                    | Creador/admin; `{title, category, game?, image?}`; máximo cinco canales por cuenta |
 | `GET /api/streams/[slug]`              | Canal público                                                                      |
 | `PATCH /api/streams/[slug]`            | Propietario/admin; actualizar título, categoría, juego o portada                   |
+| `GET /api/streams/[slug]/playback`     | Estado real y URL HLS pública sin clave de publicación |
+| `GET /api/streams/[slug]/key`          | Solo propietario; servidor y existencia de clave, nunca el secreto |
+| `POST /api/streams/[slug]/key`         | Solo propietario; crea/renueva clave, mostrada una sola vez; corta la emisión anterior |
+| `DELETE /api/streams/[slug]/key`       | Solo propietario; revoca y desconecta la emisión |
+| `POST /api/video/auth`                | Callback de MediaMTX; valida credenciales de publicación/control y lectura pública; no usa cookies ni Origin |
 | `GET /api/follows`                     | IDs de canales seguidos por la sesión actual                                       |
 | `POST /api/follows`                    | `{streamId}`; seguir de forma idempotente                                          |
 | `DELETE /api/follows`                  | `{streamId}`; dejar de seguir                                                      |
@@ -110,11 +115,32 @@ npm audit
 
 `test:api` levanta un servidor HTTP en un puerto local libre con una base SQLite temporal, aplica las migraciones y carga el seed. Usa únicamente identidades sintéticas y contraseñas aleatorias en memoria. Prueba autenticación, cookies, validación, permisos entre cuentas, favoritos, chat, moderación, límites y persistencia al reiniciar el servidor. También comprueba `Secure` con una configuración HTTPS sintética; esto no despliega un servidor TLS. El test detiene su servidor y elimina su base temporal, sin tocar `prisma/dev.db`. Debe ejecutarse después de `npm run build` y no en paralelo con otro build.
 
-## Qué falta para emitir vídeo y abrir al público
+## Conectar OBS y reproducir vídeo
 
-**El backend local funciona para cuentas, canales, favoritos y chat. El vídeo todavía no está conectado.** Los ocho canales del seed están marcados como ejemplos, sin emisión y con cero espectadores; sus cuentas tienen contraseñas aleatorias descartadas, por lo que no son accesos de prueba públicos. Los clips no se simulan.
+El servidor de vídeo vive en el repositorio separado [nexora-streaming](https://github.com/sportal722/nexora-streaming/tree/coderabbit/custom-streaming-page-branding/b1c42684). Sigue su README para instalar MediaMTX y configurar estas variables en el `.env` privado de esta web:
 
-Pendiente: servidor RTMP/WHIP (por ejemplo MediaMTX), claves de transmisión privadas y revocables, reproductor HLS/DASH, estado de emisión confirmado por el servidor de vídeo, almacenamiento de avatares/banners/clips, integraciones y secretos cifrados, verificación de email, recuperación de contraseña, PostgreSQL y migraciones para producción, transporte de chat SSE/WebSockets, paginación para grandes catálogos, límites distribuidos, monitorización y copias de seguridad con restauración probada. No hay pagos ni proveedores externos conectados. No desplegar esta versión como una plataforma de streaming lista para producción.
+```dotenv
+MEDIAMTX_API_URL="http://127.0.0.1:9997"
+MEDIAMTX_API_PASSWORD="CONTRASENA_ALEATORIA_GENERADA_LOCALMENTE"
+VIDEO_INGEST_URL="rtmp://localhost:1935/live"
+VIDEO_HLS_URL="http://localhost:8888"
+```
+
+Genera la contraseña con `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`; no utilices el texto de ejemplo. Reinicia la web después de configurar. La API de control de MediaMTX permanece privada; el navegador solo recibe la URL HLS.
+
+En **Emitir**, guarda el canal, crea una clave y copia el servidor y la clave completos a OBS → Emisión → Servicio personalizado. Usa H.264, audio AAC y fotogramas clave cada 2 segundos. Abre el canal para ver la señal; el reproductor usa HLS nativo o hls.js. No hay transcodificación ni selector multicalidad. El contador de espectadores únicos aún no está implementado.
+
+Las claves aleatorias de 256 bits se almacenan como hash SHA256 en una tabla separada, se muestran una sola vez y nunca aparecen en el catálogo o las URLs públicas de reproducción. Solo el propietario puede renovarlas o revocarlas. Renovar cambia también la ruta pública y desconecta al emisor anterior; bloquear al creador elimina sus claves. Si MediaMTX está inaccesible, la credencial queda invalidada para nuevas conexiones y se informa que el corte de una conexión existente no pudo confirmarse. Detén OBS o reinicia el servidor en ese caso.
+
+El catálogo confirma el directo en la API de MediaMTX cada 10 segundos; el reproductor consulta cada 3 segundos. `/api/health` distingue configuración presente de ausente, sin afirmar que el servidor esté conectado. Un fallo de conexión se refleja como `unavailable` en el catálogo y un error 503 en playback. Sin configuración de vídeo, cuentas, canales y chat siguen funcionando.
+
+En el repositorio de streaming, `npm run test:local` verifica ambos proyectos con una SQLite temporal y una señal de ffmpeg real: emisión RTMP, decodificación HLS, permisos, renovación, revocación, bloqueo y caída del servidor. Requiere el build de producción de esta web y ffmpeg; no modifica tu base local.
+
+## Preparación para uso público
+
+**El backend y el vídeo local están integrados.** Los ocho canales del seed están marcados como ejemplos, sin emisión y con cero espectadores; sus cuentas tienen contraseñas aleatorias descartadas, por lo que no son accesos de prueba públicos. Los clips no se simulan.
+
+Pendiente para un servicio público: VPS alcanzable desde OBS, dominios, HTTPS/RTMPS y firewall, transcodificación/CDN para escalar, WebRTC/WHIP, almacenamiento de avatares/banners/clips, integraciones y secretos cifrados, verificación de email, recuperación de contraseña, PostgreSQL y migraciones para producción, transporte de chat SSE/WebSockets, paginación para grandes catálogos, límites distribuidos, monitorización y copias de seguridad con restauración probada. No hay pagos ni proveedores externos conectados. No desplegar esta versión como una plataforma de streaming lista para producción.
 
 `continuar.md` conserva los requisitos de fases posteriores. Los modelos y rutas de esta implementación están en `prisma/`, `lib/` y `app/api/[...path]/route.ts`.
 

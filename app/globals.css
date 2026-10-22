@@ -2338,3 +2338,14 @@ footer > button {
     margin: 0;
   }
 }
+
+.live-player { background: #080911; min-width: 0; }
+.live-player video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+.stream-connection { margin-top: 24px; padding-top: 20px; border-top: 1px solid #303044; display: grid; gap: 12px; text-align: left; }
+.stream-connection h3 { font-size: 18px; }
+.stream-connection p { margin: 0; font-size: 13px; line-height: 1.6; }
+.stream-connection input { width: 100%; min-width: 0; padding: 12px; border: 1px solid #3a3a50; border-radius: 8px; background: #11121c; color: #efeff7; font: inherit; }
+.stream-connection label { font-size: 13px; color: #c7c7db; }
+.stream-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.stream-actions button { border: 1px solid #57516f; border-radius: 8px; padding: 10px 12px; background: #252036; color: #f4f0ff; cursor: pointer; }
+.stream-actions button:disabled { opacity: .6; cursor: wait; }

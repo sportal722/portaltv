@@ -24,6 +24,7 @@ import {
   startSession,
 } from "@/lib/auth";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import { authorizeVideo, keyInfo, playback, revokeKey, revokeUserVideo, rotateKey, videoConfigured, withVideo } from "@/lib/video";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ path: string[] }> };
@@ -32,13 +33,17 @@ async function handle(request: NextRequest, context: Context) {
     const { path } = await context.params;
     const route = path.join("/");
     const method = request.method;
+    if (route === "video/auth" && method === "POST") {
+      await authorizeVideo(await body(request));
+      return json({ allowed: true });
+    }
     if (!["GET", "HEAD"].includes(method)) guardOrigin(request);
     if (route === "health" && method === "GET") {
       await prisma.$queryRaw`SELECT 1`;
       return json({
         status: "ok",
         database: "connected",
-        video: "not_configured",
+        video: videoConfigured() ? "configured" : "not_configured",
       });
     }
     if (route === "auth/me" && method === "GET")
@@ -145,7 +150,7 @@ async function handle(request: NextRequest, context: Context) {
         orderBy: { id: "asc" },
         take: 100,
       });
-      return json(result.map(serializeStream));
+      return json(await withVideo(result));
     }
     if (route === "streams" && method === "POST") {
       const user = await requireUser(request, ["creator", "admin"]);
@@ -169,7 +174,7 @@ async function handle(request: NextRequest, context: Context) {
     }
     if (path[0] === "streams" && path.length === 2) {
       const stream = await findStream(path[1]);
-      if (method === "GET") return json(serializeStream(stream));
+      if (method === "GET") return json((await withVideo([stream]))[0]);
       if (method === "PATCH") {
         const user = await requireUser(request, ["creator", "admin"]);
         if (stream.ownerId !== user.id && user.role !== "admin")
@@ -197,6 +202,20 @@ async function handle(request: NextRequest, context: Context) {
             }),
           ),
         );
+      }
+    }
+    if (path[0] === "streams" && path.length === 3 && path[2] === "playback" && method === "GET") {
+      return json(await playback(await findStream(path[1])));
+    }
+    if (path[0] === "streams" && path.length === 3 && path[2] === "key") {
+      const user = await requireUser(request, ["creator", "admin"]);
+      const stream = await findStream(path[1]);
+      if (stream.ownerId !== user.id || stream.isDemo)
+        throw new ApiError(403, "FORBIDDEN", "Solo el propietario puede gestionar la clave de este canal.");
+      if (method === "GET") return json(await keyInfo(stream.id));
+      if (method === "POST" || method === "DELETE") {
+        await rateLimit(`video-key:${user.id}`, 20, 3600);
+        return json(method === "POST" ? await rotateKey(stream.id) : await revokeKey(stream.id));
       }
     }
     if (route === "follows") {
@@ -352,7 +371,8 @@ async function handle(request: NextRequest, context: Context) {
             await tx.session.deleteMany({ where: { userId: id } });
           return result;
         });
-        return json(user);
+        const disconnectPending = status === "banned" ? await revokeUserVideo(id) : false;
+        return json({ ...user, disconnectPending });
       }
     }
     if (route === "clips" && method === "GET") return json([]);

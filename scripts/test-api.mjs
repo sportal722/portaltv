@@ -18,6 +18,7 @@ const env = {
   DATABASE_URL: databaseUrl,
   APP_URL: base,
   NEXT_TELEMETRY_DISABLED: "1",
+  MEDIAMTX_API_URL: "",
 };
 const db = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
 let server;
