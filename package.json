@@ -12,6 +12,7 @@
     "db:seed": "prisma db seed",
     "db:setup": "node scripts/setup-db.mjs",
     "test:api": "node scripts/test-api.mjs",
+    "test:community": "node scripts/test-community.mjs",
     "admin:promote": "node --env-file=.env --import tsx scripts/promote-admin.ts"
   },
   "dependencies": {

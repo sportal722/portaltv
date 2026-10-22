@@ -17,6 +17,8 @@ model User {
   streams Stream[]
   follows Follow[]
   messages ChatMessage[]
+  moderations ChannelModerator[]
+  bans ChannelBan[]
 }
 model Session {
   tokenHash String @id
@@ -33,10 +35,13 @@ model Stream {
   title String
   game String
   category String
-  image String @default("cyberpunk")
-  avatar Int @default(6)
+  image String @default("channel")
+  avatar Int @default(0)
   tag String @default("Comunidad")
   isDemo Boolean @default(false)
+  description String @default("")
+  language String @default("Español")
+  thumbnailUrl String @default("")
   status String @default("offline")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -44,6 +49,13 @@ model Stream {
   follows Follow[]
   messages ChatMessage[]
   credential StreamCredential?
+  moderators ChannelModerator[]
+  bans ChannelBan[]
+  chatSettings ChatSettings?
+  commands ChatCommand[]
+  alertSettings AlertSettings?
+  activities ActivityEvent[]
+  audit AuditEvent[]
   @@index([ownerId])
   @@index([category])
 }
@@ -61,6 +73,8 @@ model ChatMessage {
   userId String
   streamId Int
   text String
+  scope String @default("public")
+  isBot Boolean @default(false)
   createdAt DateTime @default(now())
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
@@ -80,4 +94,74 @@ model StreamCredential {
   keyHash String
   updatedAt DateTime @updatedAt
   stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+}
+
+model ChannelModerator {
+  streamId Int
+  userId String
+  createdAt DateTime @default(now())
+  stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([streamId, userId])
+  @@index([userId])
+}
+model ChannelBan {
+  streamId Int
+  userId String
+  reason String
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([streamId, userId])
+}
+model ChatSettings {
+  streamId Int @id
+  slowSeconds Int @default(0)
+  followersOnly Boolean @default(false)
+  blockLinks Boolean @default(false)
+  blockedWords String @default("")
+  stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+}
+model ChatCommand {
+  id Int @id @default(autoincrement())
+  streamId Int
+  name String
+  response String
+  cooldownSeconds Int @default(30)
+  moderatorsOnly Boolean @default(false)
+  enabled Boolean @default(true)
+  lastUsedAt DateTime?
+  stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  @@unique([streamId, name])
+}
+model AlertSettings {
+  streamId Int @id
+  followersEnabled Boolean @default(true)
+  template String @default("¡Gracias por seguir el canal, {user}!")
+  accent String @default("#a78bfa")
+  durationSeconds Int @default(6)
+  soundEnabled Boolean @default(false)
+  tokenHash String?
+  stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+}
+model ActivityEvent {
+  id Int @id @default(autoincrement())
+  streamId Int
+  kind String
+  username String
+  createdAt DateTime @default(now())
+  stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  @@index([streamId, id])
+}
+model AuditEvent {
+  id Int @id @default(autoincrement())
+  streamId Int?
+  actorId String
+  actorName String
+  action String
+  target String
+  createdAt DateTime @default(now())
+  stream Stream? @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  @@index([streamId, id])
 }

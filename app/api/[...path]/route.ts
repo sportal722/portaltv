@@ -24,7 +24,17 @@ import {
   startSession,
 } from "@/lib/auth";
 import { hashPassword, verifyPassword } from "@/lib/password";
-import { authorizeVideo, keyInfo, playback, revokeKey, revokeUserVideo, rotateKey, videoConfigured, withVideo } from "@/lib/video";
+import {
+  authorizeVideo,
+  keyInfo,
+  playback,
+  revokeKey,
+  revokeUserVideo,
+  rotateKey,
+  videoConfigured,
+  withVideo,
+} from "@/lib/video";
+import { handleCommunity, auditData } from "@/lib/community";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ path: string[] }> };
@@ -121,6 +131,8 @@ async function handle(request: NextRequest, context: Context) {
       await revokeSession(request);
       return clearSessionCookie(request, json({ loggedOut: true }));
     }
+    const community = await handleCommunity(request, path);
+    if (community) return community;
     if (route === "streams" && method === "GET") {
       const query = (request.nextUrl.searchParams.get("q") || "").trim();
       if (query.length > 100)
@@ -134,6 +146,8 @@ async function handle(request: NextRequest, context: Context) {
       const user = mine ? await requireUser(request) : null;
       const result = await prisma.stream.findMany({
         where: {
+          isDemo: false,
+          owner: { status: { not: "banned" } },
           ...(user ? { ownerId: user.id } : {}),
           ...(category ? { category } : {}),
           ...(query
@@ -190,6 +204,10 @@ async function handle(request: NextRequest, context: Context) {
             category: stream.category,
             game: stream.game,
             image: stream.image,
+            tag: stream.tag,
+            description: stream.description,
+            language: stream.language,
+            thumbnailUrl: stream.thumbnailUrl,
           },
           ...input,
         });
@@ -204,18 +222,31 @@ async function handle(request: NextRequest, context: Context) {
         );
       }
     }
-    if (path[0] === "streams" && path.length === 3 && path[2] === "playback" && method === "GET") {
+    if (
+      path[0] === "streams" &&
+      path.length === 3 &&
+      path[2] === "playback" &&
+      method === "GET"
+    ) {
       return json(await playback(await findStream(path[1])));
     }
     if (path[0] === "streams" && path.length === 3 && path[2] === "key") {
       const user = await requireUser(request, ["creator", "admin"]);
       const stream = await findStream(path[1]);
       if (stream.ownerId !== user.id || stream.isDemo)
-        throw new ApiError(403, "FORBIDDEN", "Solo el propietario puede gestionar la clave de este canal.");
+        throw new ApiError(
+          403,
+          "FORBIDDEN",
+          "Solo el propietario puede gestionar la clave de este canal.",
+        );
       if (method === "GET") return json(await keyInfo(stream.id));
       if (method === "POST" || method === "DELETE") {
         await rateLimit(`video-key:${user.id}`, 20, 3600);
-        return json(method === "POST" ? await rotateKey(stream.id) : await revokeKey(stream.id));
+        return json(
+          method === "POST"
+            ? await rotateKey(stream.id)
+            : await revokeKey(stream.id),
+        );
       }
     }
     if (route === "follows") {
@@ -238,91 +269,31 @@ async function handle(request: NextRequest, context: Context) {
           }))
         )
           throw new ApiError(404, "NOT_FOUND", "No se encontró el canal.");
-        if (method === "POST")
-          await prisma.follow.upsert({
+        await rateLimit(`follow:${user.id}`, 30, 60);
+        await prisma.$transaction(async (tx) => {
+          const existing = await tx.follow.findUnique({
             where: { userId_streamId: { userId: user.id, streamId } },
-            create: { userId: user.id, streamId },
-            update: {},
           });
-        else
-          await prisma.follow.deleteMany({
-            where: { userId: user.id, streamId },
-          });
+          if (method === "POST" && !existing) {
+            await tx.follow.create({ data: { userId: user.id, streamId } });
+            const recent = await tx.activityEvent.findFirst({
+              where: {
+                streamId,
+                username: user.username,
+                kind: "follow",
+                createdAt: { gt: new Date(Date.now() - 86400000) },
+              },
+            });
+            if (!recent)
+              await tx.activityEvent.create({
+                data: { streamId, kind: "follow", username: user.username },
+              });
+          } else if (method === "DELETE")
+            await tx.follow.deleteMany({
+              where: { userId: user.id, streamId },
+            });
+        });
         return json({ streamId, following: method === "POST" });
-      }
-    }
-    if (
-      path[0] === "streams" &&
-      path[2] === "chat" &&
-      (path.length === 3 || path.length === 4)
-    ) {
-      const stream = await findStream(path[1]);
-      if (method === "GET" && path.length === 3) {
-        const result = await prisma.chatMessage.findMany({
-          where: { streamId: stream.id },
-          orderBy: { id: "desc" },
-          take: 100,
-          include: { user: { select: { username: true } } },
-        });
-        return json(
-          result.reverse().map((m) => ({
-            id: m.id,
-            name: m.user.username,
-            text: m.text,
-            createdAt: m.createdAt,
-          })),
-        );
-      }
-      if (method === "POST" && path.length === 3) {
-        const user = await requireUser(request);
-        if (user.status !== "active")
-          throw new ApiError(
-            403,
-            "MUTED",
-            "Tu cuenta no puede enviar mensajes.",
-          );
-        const message = text(await body(request), "text", 1, 300);
-        if (/\b(?:spamcasino|scamlink)\b/i.test(message))
-          throw new ApiError(
-            400,
-            "MODERATION",
-            "El mensaje contiene una palabra bloqueada.",
-          );
-        await rateLimit(`chat:${user.id}`, 10, 10);
-        const created = await prisma.chatMessage.create({
-          data: { streamId: stream.id, userId: user.id, text: message },
-        });
-        return json(
-          {
-            id: created.id,
-            name: user.username,
-            text: created.text,
-            createdAt: created.createdAt,
-          },
-          201,
-        );
-      }
-      if (method === "DELETE" && path.length === 4) {
-        const user = await requireUser(request);
-        const id = Number(path[3]);
-        positiveId(id);
-        const message = await prisma.chatMessage.findFirst({
-          where: { id, streamId: stream.id },
-        });
-        if (!message)
-          throw new ApiError(404, "NOT_FOUND", "Mensaje no encontrado.");
-        if (
-          user.id !== message.userId &&
-          user.id !== stream.ownerId &&
-          user.role !== "admin"
-        )
-          throw new ApiError(
-            403,
-            "FORBIDDEN",
-            "No puedes eliminar este mensaje.",
-          );
-        await prisma.chatMessage.delete({ where: { id } });
-        return json({ deleted: true });
       }
     }
     if (route === "admin/users") {
@@ -369,9 +340,17 @@ async function handle(request: NextRequest, context: Context) {
           });
           if (status === "banned")
             await tx.session.deleteMany({ where: { userId: id } });
+          await tx.auditEvent.create({
+            data: auditData(
+              admin,
+              "user.status",
+              `${result.username}: ${status}`,
+            ),
+          });
           return result;
         });
-        const disconnectPending = status === "banned" ? await revokeUserVideo(id) : false;
+        const disconnectPending =
+          status === "banned" ? await revokeUserVideo(id) : false;
         return json({ ...user, disconnectPending });
       }
     }

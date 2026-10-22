@@ -138,7 +138,7 @@ try {
   const health = await request("health");
   check(health.data.database === "connected", "Database health");
   const publicStreams = (await request("streams")).data;
-  check(publicStreams.length === 8, "Seed has eight sample channels");
+  check(publicStreams.length === 0, "Fresh database has no sample channels");
   check(
     publicStreams.every(
       (s) => s.isDemo && s.status === "offline" && s.viewers === "0",
@@ -409,6 +409,9 @@ try {
     who: viewer,
     data: { text: "a".repeat(301) },
     status: 400,
+  });
+  await db.chatSettings.create({
+    data: { streamId: channel.id, blockedWords: "spamcasino" },
   });
   await request(chat, {
     method: "POST",

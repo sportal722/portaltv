@@ -12,6 +12,10 @@ export type Stream = {
   title: string;
   game: string;
   category: string;
+  description: string;
+  language: string;
+  thumbnailUrl: string;
+  followers: number;
   image: string;
   avatar: number;
   tag: string;
@@ -22,6 +26,9 @@ export type Stream = {
 export type Message = {
   id: number;
   name: string;
+  userId: string;
+  role: string;
+  isBot: boolean;
   text: string;
   createdAt: string;
 };

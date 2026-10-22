@@ -138,7 +138,7 @@ export function streamInput(data: Record<string, unknown>) {
     throw new ApiError(400, "VALIDATION", "Categoría no válida.");
   const game = data.game === undefined ? category : text(data, "game", 2, 60);
   const image =
-    data.image === undefined ? "cyberpunk" : text(data, "image", 2, 30);
+    data.image === undefined ? "channel" : text(data, "image", 2, 30);
   if (!images.some((i) => i === image))
     throw new ApiError(400, "VALIDATION", "Imagen no válida.");
   if (
@@ -152,7 +152,41 @@ export function streamInput(data: Record<string, unknown>) {
       "VALIDATION",
       "El estado, la identidad y los espectadores se gestionan en el servidor.",
     );
-  return { title, category, game, image };
+  const description =
+    data.description === undefined ? "" : text(data, "description", 0, 1000);
+  const language =
+    data.language === undefined ? "Español" : text(data, "language", 2, 30);
+  const tag = data.tag === undefined ? "Comunidad" : text(data, "tag", 0, 100);
+  const thumbnailUrl =
+    data.thumbnailUrl === undefined ? "" : text(data, "thumbnailUrl", 0, 1000);
+  if (thumbnailUrl) {
+    let url: URL;
+    try {
+      url = new URL(thumbnailUrl);
+    } catch {
+      throw new ApiError(
+        400,
+        "VALIDATION",
+        "La miniatura debe ser una URL HTTPS.",
+      );
+    }
+    if (url.protocol !== "https:" || url.username || url.password)
+      throw new ApiError(
+        400,
+        "VALIDATION",
+        "La miniatura debe ser una URL HTTPS pública sin credenciales.",
+      );
+  }
+  return {
+    title,
+    category,
+    game,
+    image,
+    description,
+    language,
+    tag,
+    thumbnailUrl,
+  };
 }
 export async function rateLimit(key: string, limit: number, seconds: number) {
   const now = new Date();
@@ -179,12 +213,20 @@ export const publicUserSelect = {
   role: true,
   status: true,
 } as const;
-export const streamInclude = { owner: { select: { username: true } } } as const;
+export const streamInclude = {
+  owner: { select: { username: true } },
+  _count: { select: { follows: true } },
+} as const;
 export function serializeStream(
   stream: Prisma.StreamGetPayload<{ include: typeof streamInclude }>,
 ) {
-  const { owner, ...rest } = stream;
-  return { ...rest, name: owner.username, viewers: "0" };
+  const { owner, _count, ...rest } = stream;
+  return {
+    ...rest,
+    name: owner.username,
+    followers: _count.follows,
+    viewers: "0",
+  };
 }
 export async function findStream(slug: string) {
   if (!/^[a-z0-9-]{3,80}$/.test(slug))
@@ -193,6 +235,16 @@ export async function findStream(slug: string) {
     where: { slug },
     include: streamInclude,
   });
-  if (!stream) throw new ApiError(404, "NOT_FOUND", "No se encontró el canal.");
+  if (
+    !stream ||
+    stream.isDemo ||
+    (
+      await prisma.user.findUnique({
+        where: { id: stream.ownerId },
+        select: { status: true },
+      })
+    )?.status === "banned"
+  )
+    throw new ApiError(404, "NOT_FOUND", "No se encontró el canal.");
   return stream;
 }
