@@ -2,6 +2,72 @@
 
 Plataforma de streaming en español con Next.js 15, React 19, TypeScript, Prisma/SQLite y MediaMTX. Identidad violeta y menta. **Tu mundo, en directo.**
 
+## Estado del proyecto y roadmap
+
+Actualizado el **22 de octubre de 2026**. Plataforma desplegada en [cloudcraft.mx](https://cloudcraft.mx), con backend y datos persistentes. La base funcional está disponible; las cuatro fases siguen abiertas y no se considera completada toda la hoja de ruta.
+
+### Lo que ya tenemos
+
+- [x] Identidad NEXORA, diseño adaptable y catálogo limpio: sin canales, cuentas ni imágenes de demo; estados vacíos reales.
+- [x] Registro, inicio/cierre de sesión, cuentas de espectador/creador y permisos comprobados en backend.
+- [x] Emisión desde OBS por RTMPS, detección del estado real, reproducción HLS y claves privadas renovables/revocables.
+- [x] Canales con dirección legible (`/channel/usuario`), canales adicionales numerados y compatibilidad con enlaces antiguos.
+- [x] Reproductor con estados de carga/error/desconexión, reintento manual y recuperación automática limitada de red/decodificación.
+- [x] Panel del creador: título, categoría, actividad, etiquetas, idioma, descripción, miniatura HTTPS, vista previa, claves OBS y equipo.
+- [x] Chat público en tiempo real y chat privado del equipo, moderadores, borrado, sanciones temporales/permanentes, modo lento, solo seguidores y filtros de palabras/enlaces.
+- [x] Comandos persistentes con permisos y tiempos de espera; alertas de seguidores personalizables con fuente privada para OBS.
+- [x] Búsqueda, categorías, filtro de directos, seguir/dejar de seguir y conteos reales de seguidores, mensajes y moderadores.
+- [x] Panel global separado con gestión de estados de cuenta y auditoría de las acciones implementadas.
+- [x] HTTPS con Caddy, servicios de streaming separados de los paneles existentes, copias locales automáticas y comprobaciones de salud.
+- [x] Pruebas de API, permisos, migraciones, conservación de datos, emisión y reproducción; última ejecución local: **222 comprobaciones API + 196 de comunidad**.
+
+**Pendiente operativo inmediato:** resolver los cortes intermitentes de señal/listas HLS y comprobar una emisión sostenida desde OBS. La reconexión del reproductor ya existe, pero la última comprobación pública registró respuestas 404 al recargar listas; la causa sigue pendiente de diagnóstico.
+
+### Fase 1 — Fundamentos y lanzamiento controlado
+
+La emisión, las cuentas básicas, el estudio y la moderación ya tienen una implementación funcional. Falta cerrar:
+
+- [ ] Verificación de correo, recuperación de contraseña, 2FA y gestión/cierre remoto de sesiones.
+- [ ] Privacidad, bloqueo de usuarios, exportación/eliminación de cuenta y política de retención de datos.
+- [ ] Denuncias, revisión, apelaciones, soporte con permisos propios y ampliación de la auditoría administrativa.
+- [ ] Diagnóstico del reproductor, detección de señal congelada, objetivo de latencia y pruebas sostenidas en navegadores/móviles reales.
+- [ ] Copias fuera del VPS, restauración completa probada y objetivos de recuperación RPO/RTO.
+- [ ] Monitorización de recursos/errores con avisos, protección adicional frente a bots/ataques y pruebas de carga con límites de capacidad.
+- [ ] Términos, privacidad, normas de comunidad, copyright y controles de edad/consentimiento aplicables.
+
+### Fase 2 — Contenido, descubrimiento y comunidad
+
+- [ ] Perfiles públicos completos, avatar/banner propios, carga de archivos y almacenamiento de objetos con cuotas.
+- [ ] Recomendaciones, tendencias, páginas de categoría y descubrimiento de nuevos creadores más allá de la búsqueda/filtros actuales.
+- [ ] VOD, clips, biblioteca, miniaturas propias, procesamiento en segundo plano, visibilidad y caducidad.
+- [ ] Notificaciones de inicio de directo, menciones y preferencias; calendario, eventos y recordatorios.
+- [ ] Emotes, menciones, historial de visualización, favoritos, mensajes privados con controles y moderación/antispam avanzados.
+- [ ] Mejoras del reproductor: modo cine, PiP y atajos propios, subtítulos y controles de accesibilidad; selección de calidad cuando haya variantes reales.
+- [ ] Centro de ayuda, reporte de problemas y solicitudes de funciones con votos y seguimiento público.
+
+### Fase 3 — Escalabilidad, analítica e integraciones
+
+- [ ] Separar ingestión, transcodificación y distribución; añadir calidad adaptativa, CDN, redundancia y escalado según carga.
+- [ ] Migrar la arquitectura de datos/eventos cuando lo requiera la carga: PostgreSQL, colas, pubsub y caché distribuida.
+- [ ] Espectadores simultáneos, minutos vistos, retención, histórico por emisión/periodo, gráficas, CSV y detección de tráfico artificial.
+- [ ] API versionada para terceros, OAuth, tokens con permisos, webhooks firmados, cuotas, SDK e integraciones con bots.
+- [ ] PWA, preferencias de idioma/tema/movimiento, accesibilidad ampliada y continuidad entre dispositivos; aplicaciones nativas en una etapa posterior.
+- [ ] Pruebas de carga, costes por hora vista, despliegues graduales, reversión y observabilidad de aplicación/vídeo.
+
+### Fase 4 — Monetización, ecosistema y funciones avanzadas
+
+- [ ] Suscripciones, membresías, propinas, ingresos/retiros, comisiones y pagos con trazabilidad, conciliación, reembolsos y requisitos fiscales/de identidad.
+- [ ] Puntos, recompensas, encuestas, metas de comunidad, emotes/insignias y eventos colaborativos.
+- [ ] Invitados con vídeo/audio, emisiones conjuntas/privadas, formato vertical, pistas de audio/idioma y DVR cuando la infraestructura lo permita.
+- [ ] Transcripción, subtítulos/traducción, propuestas de clips y asistencia de IA con revisión humana.
+- [ ] Paneles por departamento, gestión global de infraestructura/costes, feature flags, soporte, incidentes y experimentos A/B.
+
+### Límites actuales
+
+Una calidad de origen HLS MPEG-TS, un VPS y SQLite. Todavía no hay transcodificación adaptativa, CDN, VOD/clips, pagos ni estadísticas históricas de audiencia. Las alertas cubren seguidores y eventos de prueba; las copias son locales. El chat usa SSE con consultas periódicas a SQLite y necesita pruebas de capacidad antes de ampliar el lanzamiento.
+
+El [roadmap técnico](docs/ROADMAP.md) amplía dependencias y criterios de cierre. Cada función pendiente requiere implementación, permisos, pruebas y validación operativa antes de marcarse como terminada.
+
 ## Desarrollo local
 
 Node.js 24 y npm. No se crean usuarios, canales ni imágenes de muestra.
