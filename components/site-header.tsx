@@ -31,6 +31,7 @@ export function SiteHeader() {
           {user && (
             <>
               <Link href="/account/security">Seguridad</Link>
+              <Link href="/notifications">Notificaciones</Link>
               <Link href="/studio">
                 <LayoutDashboard size={17} /> Mi estudio
               </Link>

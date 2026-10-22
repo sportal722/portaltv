@@ -2,7 +2,7 @@
 import base64, hashlib, http.server, json, os, pathlib, secrets, shutil, socket, sqlite3, subprocess, tempfile, threading, time, urllib.request, urllib.error
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FOLDER = pathlib.Path(tempfile.mkdtemp(prefix='nexora-compat-'))
-children=[]; checks=0
+children=[]; checks=0; passwords={}
 
 def port():
     with socket.socket() as s:s.bind(('127.0.0.1',0));return s.getsockname()[1]
@@ -47,7 +47,8 @@ def req(path,method='GET',data=None,cookie='',auth=None,status=200):
     return json.load(r).get('data'),r.headers.get('Set-Cookie','').split(';')[0]
 
 def account(name):
-    _,cookie=req('auth/register','POST',{'username':name,'email':name+'@example.test','password':secrets.token_urlsafe(24),'role':'creator'},status=201)
+    passwords[name]=secrets.token_urlsafe(24)
+    _,cookie=req('auth/register','POST',{'username':name,'email':name+'@example.test','password':passwords[name],'role':'creator'},status=201)
     stream,_=req('streams','POST',{'title':'Codec compatibility','category':'IRL'},cookie=cookie,status=201)
     key,_=req('streams/'+stream['slug']+'/key','POST',cookie=cookie)
     return stream,cookie,key
@@ -80,6 +81,8 @@ try:
     req('video/jobs',status=403);req('video/jobs',auth='Bearer invalid',status=403)
     check(req('video/jobs',auth='Bearer '+token)[0]==[],'Initial jobs empty')
     stream,cookie,key=account('compat_hevc');route='streams/'+stream['slug']
+    _,follower=req('auth/register','POST',{'username':'compat_follower','email':'compat_follower@example.test','password':secrets.token_urlsafe(24),'role':'viewer'},status=201)
+    req('follows','POST',{'streamId':stream['id']},cookie=follower)
     first=publish(key,hevc=True)
     wait(lambda:req(route+'/playback')[0]['status']=='processing','HEVC source awaiting worker')
     path='live/'+key['streamKey'].split('?')[0]
@@ -88,6 +91,8 @@ try:
     worker_env={**env,'MEDIA_ROOT':str(FOLDER/'media'),'WORKER_API_URL':base+'/api/video/jobs','WORKER_RTSP_URL':f'rtsp://127.0.0.1:{rtspport}','WORKER_MAX_STREAMS':'1'}
     worker=subprocess.Popen(['python3','services/video-worker/worker.py'],cwd=ROOT,env=worker_env,stdin=subprocess.DEVNULL,stdout=open(FOLDER/'worker.log','w'),stderr=subprocess.STDOUT);children.append(worker)
     wait(lambda:req(route+'/playback')[0].get('dashUrl'),'HEVC conversion readiness')
+    notices=req('notifications',cookie=follower)[0]
+    check(len(notices['items'])==1 and notices['unread']==1,'Actual live signal produces follower notification')
     data=req(route+'/playback')[0]
     for fmt,url in [('hls',data['url']),('dash',data['dashUrl'])]:
         result=subprocess.run(['ffprobe','-v','error','-show_entries','stream=codec_name,width,height,channels','-of','json',url],capture_output=True,timeout=25,check=True)
@@ -131,12 +136,16 @@ try:
     req('admin/channels','PATCH',{'id':second['id'],'suspended':False,'reason':'Synthetic restore test'},cookie=admincookie)
     req('video/auth','POST',{'action':'publish','protocol':'rtmp','path':secondpath,'query':secondkey['streamKey'].partition('?')[2]},status=403)
     newkey,_=req('streams/'+second['slug']+'/key','POST',cookie=secondcookie)
-    publish(newkey,audio=False)
+    restored=publish(newkey,audio=False)
     wait(lambda:req('streams/'+second['slug']+'/playback')[0].get('dashUrl'),'Restored channel requires new key and works')
     # Worker death/stale state must never be announced as ready indefinitely.
     stop(worker)
     wait(lambda:req('streams/'+second['slug']+'/playback')[0]['status']=='processing','Worker unavailable surfaced')
     check(req('streams/'+second['slug'])[0]['liveThumbnailUrl'] is None,'No stale live thumbnails')
+    req('account/delete','DELETE',{'password':passwords['compat_silent'],'confirmation':'compat_silent'},cookie=secondcookie)
+    wait(lambda:restored.poll() is not None,'Account deletion disconnects live publisher')
+    check(not req('video/jobs',auth='Bearer '+token)[0],'Deleted account has no processing job')
+    req('video/auth','POST',{'action':'publish','protocol':'rtmp','path':'live/'+newkey['streamKey'].split('?')[0],'query':newkey['streamKey'].partition('?')[2]},status=403)
     print(f'PASS: {checks} API/media checks including worker auth, HEVC decode, thumbnails, capacity, revocation, silent source and cleanup',flush=True)
 except Exception:
     if (FOLDER/'worker.log').exists():print((FOLDER/'worker.log').read_text()[-2000:])

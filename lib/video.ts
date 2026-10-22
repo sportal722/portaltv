@@ -1,3 +1,4 @@
+import { recordLiveChannels } from "./notifications";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { prisma } from "./prisma";
 import { ApiError, serializeStream, streamInclude } from "./api";
@@ -241,6 +242,9 @@ export async function revokeKey(streamId: number) {
   });
   return { hasKey: false, disconnectPending: await disconnect(previous?.path) };
 }
+export async function disconnectVideoPaths(paths: string[]) {
+  return (await Promise.all(paths.map(path => disconnect(path)))).some(Boolean);
+}
 export async function revokeUserVideo(ownerId: string) {
   const credentials = await prisma.streamCredential.findMany({
     where: { stream: { ownerId } },
@@ -294,12 +298,19 @@ export async function videoJobs(authorization: string | null) {
         owner: { status: { not: "banned" } },
       },
     },
-    select: { path: true },
+    select: { path: true, streamId: true },
   });
   const paths = new Set(
     (await videoPaths())
       .filter((p) => p.available && p.online && p.source)
       .map((p) => p.name),
   );
-  return credentials.filter((c) => paths.has(c.path));
+  const live = credentials.filter((c) => paths.has(c.path));
+  try {
+    await recordLiveChannels(live.map(c => c.streamId));
+  } catch {
+    // Notification storage must not interrupt video processing; next poll retries.
+    console.error("Live notification delivery failed; pending retry");
+  }
+  return live.map(({ path }) => ({ path }));
 }

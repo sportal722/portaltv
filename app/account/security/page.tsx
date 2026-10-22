@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AccountData } from "@/components/account-data";
 import { SiteHeader } from "@/components/site-header";
 import { api } from "@/lib/client";
 type Security = {
@@ -330,6 +331,7 @@ export default function SecurityPage() {
                 ))}
               </div>
             </section>
+            <AccountData />
           </>
         )}
       </main>

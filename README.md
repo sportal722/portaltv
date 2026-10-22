@@ -28,7 +28,9 @@ Actualizado el **22 de octubre de 2026**. Plataforma desplegada en [cloudcraft.m
 La emisión, las cuentas básicas, el estudio y la moderación ya tienen una implementación funcional. Falta cerrar:
 
 - [ ] Verificación de correo y recuperación de contraseña por email; 2FA y cierre remoto de sesiones ya disponibles.
-- [ ] Privacidad, bloqueo de usuarios, exportación/eliminación de cuenta y política de retención de datos.
+- [x] Exportación privada y eliminación de cuenta con contraseña/2FA, revocación y protección del último administrador.
+- [x] Notificaciones internas de directo, preferencias por canal, lectura y deduplicación de reconexiones.
+- [ ] Bloqueo personal de usuarios, política integral de retención, correo y push.
 - [ ] Apelaciones y soporte con permisos propios; denuncias/revisión y auditoría de las operaciones implementadas ya disponibles.
 - [ ] Diagnóstico del reproductor, detección de señal congelada, objetivo de latencia y pruebas sostenidas en navegadores/móviles reales.
 - [ ] Copias fuera del VPS, restauración completa probada y objetivos de recuperación RPO/RTO.
@@ -100,7 +102,8 @@ El canal principal usa `/channel/usuario`, conservando guiones bajos del nombre 
 
 - `/`: catálogo real, búsqueda por canal/título/juego/etiquetas/idioma, categorías, seguidos y filtro en directo. Las listas vacías se muestran sin contenido inventado.
 - `/channel/[slug]`: enlace compartible, reproductor, seguimiento y chat ocultable.
-- `/account/security`: configurar 2FA, guardar/renovar códigos de recuperación, cambiar contraseña y cerrar sesiones propias. Ver [seguridad y administración](docs/ACCOUNT-SECURITY.md).
+- `/notifications`: avisos reales de inicio de directo, lectura y preferencias por canal.
+- `/account/security`: exportar/eliminar la cuenta, configurar 2FA, guardar/renovar códigos de recuperación, cambiar contraseña y cerrar sesiones propias. Ver [seguridad y administración](docs/ACCOUNT-SECURITY.md).
 - `/login`, `/register`: cuentas y sesiones. Un espectador puede activar sus herramientas de creador desde el estudio.
 - `/studio`: crear/editar el canal, portada mediante URL HTTPS, vista previa, datos de seguidores/mensajes, conexión OBS, equipo, reglas, sanciones, comandos y alertas.
 - `/moderation`: solo canales asignados, chat público y privado del equipo, borrado, sanciones y reglas.
@@ -191,3 +194,5 @@ Suspender un canal lo oculta, rechaza nuevas publicaciones, revoca su clave y re
 2FA requiere una clave privada `ACCOUNT_ENCRYPTION_KEY` de 64 caracteres hexadecimales, conservada junto con las copias de recuperación. No se activa automáticamente para el usuario: debe escanear el QR y confirmar un código. No se guardan códigos de recuperación en claro y los secretos TOTP se cifran. La migración conserva las cookies existentes y elimina solo los seguimientos del propio creador y sus eventos asociados.
 
 Pruebas adicionales: `node scripts/test-totp.mjs`, `node scripts/test-account-admin.mjs` y `node scripts/test-media-output.mjs`. El estado de implementación se refleja también en `/roadmap`.
+
+Privacidad y avisos: [alcance, retención y API](docs/ACCOUNT-DATA-NOTIFICATIONS.md). Pruebas: `node scripts/test-account-data.mjs`.

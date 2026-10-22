@@ -40,6 +40,7 @@ export default function Roadmap() {
               Modo lento, solo seguidores, filtros de palabras y enlaces,
               borrado y sanciones.
             </li>
+            <li>Exportación/eliminación de cuenta y notificaciones de directo configurables por canal.</li>
             <li>Comandos personalizados y alertas de seguidores para OBS.</li>
             <li>
               Centro global de usuarios, roles, moderadores, canales, denuncias,
@@ -54,7 +55,7 @@ export default function Roadmap() {
               Verificación de correo y recuperación de contraseña por email.
             </li>
             <li>
-              Exportación y eliminación de datos, privacidad y normas de
+              Bloqueos personales, política de retención y normas de
               comunidad.
             </li>
             <li>Apelaciones y centro de soporte.</li>
@@ -68,7 +69,7 @@ export default function Roadmap() {
           <h2>Después · Contenido y crecimiento</h2>
           <ul>
             <li>VOD, clips, biblioteca y almacenamiento de objetos.</li>
-            <li>Notificaciones de inicio de directo y calendario.</li>
+            <li>Notificaciones por correo/push y calendario.</li>
             <li>
               Estadísticas de audiencia, historial de emisiones y exportaciones.
             </li>

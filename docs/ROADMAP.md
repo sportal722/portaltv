@@ -16,6 +16,8 @@ Esta primera entrega limpia la demo y construye herramientas operativas para cre
 - [x] Alertas de seguidores configurables y fuente OBS con URL privada renovable/revocable, pruebas y deduplicación.
 - [x] Centro global: usuarios/roles, equipos, suspensión de canales, denuncias/resoluciones, ajustes de registro/anuncios y auditoría.
 - [x] 2FA TOTP con QR, secretos cifrados y códigos de recuperación de un uso; sesiones con cierre remoto y cambio de contraseña.
+- [x] Exportación propia sin credenciales y eliminación con reautenticación, cascadas, auditoría anonimizada y protección del último administrador.
+- [x] Bandeja de avisos de directo, preferencias por canal, lectura, paginación y deduplicación de reconexiones.
 - [x] Auto-seguimiento prohibido en API/interfaz y limpieza de los registros propios existentes.
 - [x] Pruebas de autenticación, permisos, migración y persistencia.
 - [x] Conversión de compatibilidad a H.264/AAC y WebM VP9/Opus; selección por capacidad del navegador, reintentos y capturas reales cada 10 s.
@@ -25,7 +27,7 @@ Esta primera entrega limpia la demo y construye herramientas operativas para cre
 
 1. Servicio de correo real: verificación, recuperación, límites, tokens de un solo uso y revocación. Elegir proveedor/dominio remitente; nunca simular envíos exitosos.
 2. Ampliar protección del equipo: 2FA, códigos de recuperación y gestión de sesiones ya disponibles; quedan políticas de 2FA obligatoria por organización y alertas de accesos.
-3. Privacidad, bloqueos, exportación/eliminación de datos y retención. Acordar términos, normas de comunidad y procedimiento de copyright con datos legales reales.
+3. Ampliar privacidad, bloqueos personales y retención. Exportación/eliminación propia ya disponibles. Acordar términos, normas de comunidad y procedimiento de copyright con datos legales reales.
 4. Apelaciones y soporte con permisos específicos; ampliar auditoría a futuras operaciones. Ya existen denuncias/revisión y registro de las acciones de cuenta/administración implementadas.
 5. Copias fuera del VPS y restauración de prueba; objetivos RPO/RTO, monitorización de capacidad y notificación de incidentes.
 6. Ampliar diagnóstico del reproductor y recuperación ya implementada; realizar pruebas sostenidas en navegadores y dispositivos con H.264/AAC. Definir objetivo de latencia y detección de señal congelada.
@@ -35,7 +37,7 @@ Esta primera entrega limpia la demo y construye herramientas operativas para cre
 
 - Perfiles/avatar/banner propios y almacenamiento de objetos con cuotas y validación de archivos.
 - Emisiones históricas, métricas de espectadores/minutos vistos y estadísticas por periodo. Separar sesiones de reproducción de personas únicas.
-- Notificaciones de directo configurables, calendario y recordatorios.
+- Correo/push de directo, calendario y recordatorios. Las notificaciones internas configurables ya están disponibles.
 - VOD/clips: almacenamiento, worker de procesado, política de caducidad, visibilidad y derechos.
 - Chat con emotes, menciones, informes, filtros más avanzados y canal de reportes del reproductor.
 - Calidad de reproducción automática/manual solo cuando existan variantes reales; PiP, atajos, subtítulos y controles accesibles.

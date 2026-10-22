@@ -1,3 +1,4 @@
+import { handleNotifications } from "@/lib/notifications";
 import { NextRequest } from "next/server";
 import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
@@ -39,6 +40,7 @@ import {
   handleAccountSecurity,
   verifySecondFactor,
 } from "@/lib/account-security";
+import { handleAccountData } from "@/lib/account-data";
 import { handlePlatform, platformSettings } from "@/lib/platform";
 import { handleCommunity, auditData } from "@/lib/community";
 export const runtime = "nodejs";
@@ -148,6 +150,10 @@ async function handle(request: NextRequest, context: Context) {
     }
     const platform = await handlePlatform(request, path);
     if (platform) return platform;
+    const notifications = await handleNotifications(request, path);
+    if (notifications) return notifications;
+    const accountData = await handleAccountData(request, path);
+    if (accountData) return accountData;
     const security = await handleAccountSecurity(request, path);
     if (security) return security;
     const community = await handleCommunity(request, path);

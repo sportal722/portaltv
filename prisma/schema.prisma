@@ -23,6 +23,7 @@ model User {
   messages ChatMessage[]
   moderations ChannelModerator[]
   bans ChannelBan[]
+  notifications LiveNotification[]
 }
 model Session {
   id String @unique @default(cuid())
@@ -66,10 +67,13 @@ model Stream {
   alertSettings AlertSettings?
   activities ActivityEvent[]
   audit AuditEvent[]
+  liveState LiveState?
+  notifications LiveNotification[]
   @@index([ownerId])
   @@index([category])
 }
 model Follow {
+  notifyLive Boolean @default(true)
   userId String
   streamId Int
   createdAt DateTime @default(now())
@@ -199,4 +203,23 @@ model Report {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([status, id])
+}
+
+model LiveState {
+  streamId Int @id
+  lastSeenAt DateTime
+  startedAt DateTime
+  stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+}
+model LiveNotification {
+  id Int @id @default(autoincrement())
+  userId String
+  streamId Int
+  startedAt DateTime
+  title String
+  readAt DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stream Stream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  @@unique([userId, streamId, startedAt])
+  @@index([userId, id])
 }

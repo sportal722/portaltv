@@ -63,3 +63,8 @@ assert db.execute('PRAGMA foreign_key_check').fetchall()==[]
 print('PASS: session cookies/ownership retained; self-follows removed; 2FA defaults disabled and channels not suspended')
 
 assert db.execute('SELECT userId FROM Follow WHERE streamId=1').fetchall()==[("keep",)]
+
+assert db.execute('SELECT notifyLive FROM Follow WHERE userId="keep"').fetchone()==(1,)
+assert db.execute('SELECT count(*) FROM LiveNotification').fetchone()==(0,)
+assert db.execute('PRAGMA foreign_key_check').fetchall()==[]
+print('PASS: notification migration preserves existing follows with opt-out preference and empty inbox')
